@@ -108,14 +108,17 @@ mod imp {
         use std::io;
         use std::path::Path;
 
-        use rustix::fs::{fgetxattr, fsetxattr, getxattr, listxattr, XattrFlags};
+        use rustix::fs::{
+            fgetxattr, fgetxattr_query, fsetxattr, getxattr, getxattr_query, listxattr,
+            listxattr_query, XattrFlags,
+        };
         use rustix::io::Errno;
 
         use super::context;
 
         /// Give `temp` every extended attribute of the file at `path`.
         pub(super) fn copy(path: &Path, temp: &File) -> io::Result<()> {
-            let names = match sized(|buf| listxattr(path, buf)) {
+            let names = match sized(|| listxattr_query(path), |buf| listxattr(path, buf)) {
                 Ok(names) => names,
                 // A file system without extended attributes: nothing to keep.
                 Err(e) if e == Errno::NOTSUP || e == Errno::OPNOTSUPP => return Ok(()),
@@ -132,13 +135,20 @@ mod imp {
                         path.display()
                     )
                 };
-                let value = sized(|buf| getxattr(path, name, buf))
-                    .map_err(|e| context(e.into(), what()))?;
+                let value = sized(
+                    || getxattr_query(path, name),
+                    |buf| getxattr(path, name, buf),
+                )
+                .map_err(|e| context(e.into(), what()))?;
                 if let Err(e) = fsetxattr(temp, name, &value, XattrFlags::empty()) {
                     // The system may already have given the new file this very
                     // value (an SELinux label inherited from the directory), and
                     // may refuse to set it again: that is not a loss.
-                    let same = sized(|buf| fgetxattr(temp, name, buf)).is_ok_and(|v| v == value);
+                    let same = sized(
+                        || fgetxattr_query(temp, name),
+                        |buf| fgetxattr(temp, name, buf),
+                    )
+                    .is_ok_and(|v| v == value);
                     if !same {
                         return Err(context(e.into(), what()));
                     }
@@ -150,11 +160,12 @@ mod imp {
         /// Read a value of unknown size: ask for the size, then read it,
         /// again if it grew in between.
         fn sized(
+            mut query: impl FnMut() -> rustix::io::Result<usize>,
             mut read: impl FnMut(&mut [u8]) -> rustix::io::Result<usize>,
         ) -> rustix::io::Result<Vec<u8>> {
             let mut attempts = 0;
             loop {
-                let mut buf = vec![0; read(&mut [])?];
+                let mut buf = vec![0; query()?];
                 match read(&mut buf) {
                     Ok(len) => {
                         buf.truncate(len);
