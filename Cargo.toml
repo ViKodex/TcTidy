@@ -56,7 +56,7 @@ globset = "0.4"
 # --- dev / tests / benches ---
 insta = "1"
 proptest = "1"
-criterion = "0.5"
+criterion = "0.8"
 
 [profile.release]
 lto = true
