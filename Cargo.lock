@@ -1153,7 +1153,7 @@ dependencies = [
 
 [[package]]
 name = "tctidy"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "criterion",
  "serde",
@@ -1166,7 +1166,7 @@ dependencies = [
 
 [[package]]
 name = "tctidy-cli"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "clap",
  "globset",
@@ -1181,7 +1181,7 @@ dependencies = [
 
 [[package]]
 name = "tctidy-format"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "insta",
  "proptest",
@@ -1192,7 +1192,7 @@ dependencies = [
 
 [[package]]
 name = "tctidy-pretty"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "smallvec",
  "unicode-width",
@@ -1200,7 +1200,7 @@ dependencies = [
 
 [[package]]
 name = "tctidy-syntax"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "logos",
  "num_enum",
@@ -1210,7 +1210,7 @@ dependencies = [
 
 [[package]]
 name = "tctidy-twincat"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "memchr",
  "quick-xml",
@@ -1463,7 +1463,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "clap",
  "regex",

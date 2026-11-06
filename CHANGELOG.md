@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-06
+
 ### Added
 
 - Configuration: `array_initializer_max_inline` (0 to 64, default 4) puts the
@@ -421,4 +423,5 @@ diagnostics. While 0.x, formatter output may change between minor versions.
 - Standalone binaries: Windows x86_64 (static CRT, no Visual C++ runtime), Linux
   x86_64-gnu, and macOS x86_64 + aarch64.
 
-[Unreleased]: https://github.com/ViKodex/TcTidy/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/ViKodex/TcTidy/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ViKodex/TcTidy/releases/tag/v0.5.0

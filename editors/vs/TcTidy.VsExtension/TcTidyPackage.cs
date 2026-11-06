@@ -13,7 +13,7 @@ namespace TcTidy.VsExtension
     /// <c>VSCommandTable.vsct</c>.
     /// </summary>
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
-    [InstalledProductRegistration("TcTidy for TwinCAT", "Format TwinCAT Structured Text with tctidy.", "0.4.1")]
+    [InstalledProductRegistration("TcTidy for TwinCAT", "Format TwinCAT Structured Text with tctidy.", "0.5.0")]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     // Load as soon as a solution is open so the command is registered and live on the
     // TwinCAT context menus (a TwinCAT project is always a fully-loaded solution).
