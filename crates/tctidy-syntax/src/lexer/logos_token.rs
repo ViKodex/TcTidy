@@ -47,7 +47,8 @@ pub(crate) enum LogosTok {
     Whitespace,
     #[regex(r"\r\n|\n|\r")]
     Newline,
-    #[regex(r"//[^\n\r]*")]
+    // The repetition stops at the end of the line, not at the end of the input.
+    #[regex(r"//[^\n\r]*", allow_greedy = true)]
     LineComment,
     #[token("(*", paren_comment)]
     BlockComment,
