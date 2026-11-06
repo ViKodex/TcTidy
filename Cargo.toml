@@ -30,7 +30,7 @@ tctidy = { path = "crates/tctidy" }
 
 # --- syntax front-end ---
 rowan = "0.17"
-logos = "0.14"
+logos = "0.16"
 num_enum = "0.7"
 text-size = "1"
 
