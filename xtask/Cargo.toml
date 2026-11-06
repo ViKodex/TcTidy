@@ -15,7 +15,7 @@ serde_json = "1"
 sha2 = "0.11"
 tempfile = "3"
 unicode-casefold = "0.2"
-zip = { version = "2.4", default-features = false, features = ["deflate"] }
+zip = { version = "9.1", default-features = false, features = ["deflate"] }
 tctidy.workspace = true
 tctidy-syntax.workspace = true
 tctidy-twincat.workspace = true

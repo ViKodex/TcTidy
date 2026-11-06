@@ -212,10 +212,11 @@ fn validate_archive(mut reader: impl Read + Seek, shell: &str) -> Result {
     let mut names = Vec::new();
     for index in 0..archive.len() {
         let file = archive.by_index(index).map_err(|e| e.to_string())?;
+        let name = file.name().map_err(|e| e.to_string())?.into_owned();
         if file.is_symlink() {
-            return Err(format!("symlink in VSIX: {}", file.name()));
+            return Err(format!("symlink in VSIX: {name}"));
         }
-        names.push((file.name().to_owned(), file.is_dir()));
+        names.push((name, file.is_dir()));
     }
     let files = archive_names(&names)?;
     validate_payload_names(&files)?;
@@ -352,7 +353,9 @@ mod tests {
     #[test]
     fn directory_counts_ignore_signatures_inside_zip_comments() {
         let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-        writer.set_comment("comment containing PK\x05\x06 but no valid directory record");
+        writer
+            .set_comment("comment containing PK\x05\x06 but no valid directory record")
+            .unwrap();
         let mut archive = writer.finish().unwrap();
         assert_eq!(directory_entries(&mut archive).unwrap(), 0);
     }
