@@ -1,0 +1,18 @@
+name: Question
+description: Ask how to use or configure TcTidy
+labels: [question]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: >-
+        What you want to do, and what you tried. This issue is public: rename or remove
+        anything confidential in code you paste.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: TcTidy version
+      description: The output of `tctidy --version`, or the installer version.

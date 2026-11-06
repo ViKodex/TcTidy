@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A BenchmarkDotNet console app measuring the cost the VS extension pays to format
+       a batch of files. Runs on Linux/CI exactly like the Core tests (drives the real
+       tctidy binary via TCTIDY_BIN); no Visual Studio or TwinCAT needed. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TcTidy.VsExtension.Core\TcTidy.VsExtension.Core.csproj" />
+  </ItemGroup>
+
+</Project>

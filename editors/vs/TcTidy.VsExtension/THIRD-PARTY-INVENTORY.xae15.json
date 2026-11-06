@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "projectFiles": [
+    "TcTidy.VsExtension.dll",
+    "TcTidy.VsExtension.Core.dll"
+  ],
+  "cargoBundles": [
+    {
+      "file": "tctidy.exe",
+      "package": "tctidy-cli",
+      "version": "0.4.1",
+      "target": "x86_64-pc-windows-msvc",
+      "license": {
+        "type": "expression",
+        "value": "MIT OR Apache-2.0",
+        "files": [
+          "LICENSE-MIT",
+          "LICENSE-APACHE"
+        ]
+      },
+      "inventoryFile": "CARGO-DEPENDENCIES.json",
+      "noticeFile": "THIRD-PARTY-NOTICES.md"
+    }
+  ],
+  "nugetFiles": [
+    {
+      "file": "Community.VisualStudio.Toolkit.dll",
+      "package": "Community.VisualStudio.Toolkit.15",
+      "version": "15.0.551",
+      "license": {
+        "type": "expression",
+        "value": "Apache-2.0",
+        "files": [
+          "LICENSE-APACHE"
+        ]
+      },
+      "notice": {
+        "required": false
+      }
+    }
+  ]
+}

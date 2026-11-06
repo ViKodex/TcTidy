@@ -1,0 +1,34 @@
+name: VSIX Core integration
+description: Build the real CLI and run the VS-independent extension tests against it.
+
+inputs:
+  setup-rust:
+    description: Set up Rust and its cache when the caller has not already done so.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      with:
+        toolchain: stable
+      if: ${{ inputs.setup-rust == 'true' }}
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      if: ${{ inputs.setup-rust == 'true' }}
+      with:
+        key: vsix-integration-${{ runner.os }}
+    - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: '8.0.x'
+    - name: Build the real CLI
+      shell: bash
+      run: cargo build -p tctidy-cli --locked
+    - name: Test the Core against the real CLI
+      shell: bash
+      env:
+        TCTIDY_BIN: ${{ github.workspace }}/target/debug/${{ runner.os == 'Windows' && 'tctidy.exe' || 'tctidy' }}
+      run: >-
+        dotnet test
+        editors/vs/TcTidy.VsExtension.Core.Tests/TcTidy.VsExtension.Core.Tests.csproj
+        --nologo

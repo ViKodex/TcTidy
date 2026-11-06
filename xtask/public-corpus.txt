@@ -1,0 +1,8 @@
+# Public TwinCAT projects that `cargo xtask corpus fetch` checks out, at a pinned
+# commit, under target/public-corpus/<name> (only the .TcPOU, .TcGVL, .TcDUT and
+# .TcIO files). The corpus tests use them unless TCTIDY_CORPUS points elsewhere.
+# To move a pin, change the commit here and run the corpus tests.
+#
+# name    repository                                 commit                                    license
+tcopen    https://github.com/TcOpenGroup/TcOpen      1756327443e8bb98db6334eb1d72fbfa1f59baaf  MIT
+tcunit    https://github.com/tcunit/TcUnit           425c62939bb81810879a244270d47d1b610a3bd3  MIT

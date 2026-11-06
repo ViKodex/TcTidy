@@ -1,0 +1,14 @@
+[package]
+name = "tctidy-syntax"
+description = "Lossless CST and typed AST for TwinCAT 3 Structured Text. No formatting knowledge."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+rowan.workspace = true
+logos.workspace = true
+num_enum.workspace = true
+text-size.workspace = true

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 136" role="img" aria-labelledby="title">
+  <title id="title">TcTidy</title>
+  <style>.ink { fill: #e6edf3; stroke: #e6edf3; } .text { fill: #e6edf3; } .accent { stroke: #f88a24; }</style>
+  <defs>
+  <mask id="m-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="136">
+    <rect width="128" height="136" fill="#fff"/>
+    <g fill="none" stroke="#000" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M30 65.12Q24.8 62.52 24.8 66.72L24.8 73.32Q24.8 77.52 22 76.12Q24.8 77.52 24.8 81.72L24.8 88.32Q24.8 92.52 30 95.12"/><path d="M40 70.12Q45.2 72.72 45.2 76.92L45.2 83.52Q45.2 87.72 48 89.12Q45.2 87.72 45.2 91.92L45.2 98.52Q45.2 102.72 40 100.12"/><line x1="75.5" y1="72.87" x2="102.5" y2="59.37"/><line x1="82.5" y1="76.77" x2="106.5" y2="64.77"/><line x1="82.5" y1="91.57" x2="110.5" y2="77.57"/><line x1="75.5" y1="102.47" x2="88.5" y2="95.97"/><line x1="75.5" y1="109.87" x2="96.5" y2="99.37"/></g>
+  </mask>
+  </defs>
+  <g class="ink" mask="url(#m-cut)" stroke-width="5" stroke-linejoin="round"><polygon points="64,10.8 112.17,34.88 64,58.97 15.83,34.88"/><polygon points="10.5,42.28 59.5,66.78 59.5,122.95 10.5,98.45"/><polygon points="68.5,66.78 117.5,42.28 117.5,98.45 68.5,122.95"/></g>
+  <g class="accent" fill="none" stroke-width="3.2" stroke-linecap="round"><line x1="82.5" y1="84.17" x2="99.5" y2="75.67"/></g>
+</svg>

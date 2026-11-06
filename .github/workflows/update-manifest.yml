@@ -1,0 +1,71 @@
+name: Update manifest
+
+# Publishes update.json to GitHub Pages: the latest stable release and the
+# notices of .github/update-notices.json, read by every installed extension to
+# announce updates. Runs after each release (release.yml dispatches it on
+# main), when the notices change on main, and on demand. See MAINTAINING.md.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/update-notices.json]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-manifest
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build update.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the manifest from the latest release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "the latest release tag is not vX.Y.Z: $tag" >&2
+            exit 1
+          }
+          mkdir -p _site
+          jq -n \
+            --arg latest "${tag#v}" \
+            --arg url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag" \
+            --slurpfile notices .github/update-notices.json \
+            'if ($notices | length) == 1 and ($notices[0] | type) == "array"
+             then {schema: 1, latest: $latest, url: $url, notices: $notices[0]}
+             else error(".github/update-notices.json must hold one JSON array") end' \
+            > _site/update.json
+          cat _site/update.json
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+      - name: Note the skipped deployment
+        if: github.event.repository.private
+        run: echo "::notice::The repository is private, so GitHub Pages is off and update.json is not deployed."
+
+  # A private repository cannot serve GitHub Pages: deploy once it is public,
+  # where a disabled Pages site fails here as it should.
+  deploy:
+    name: deploy to GitHub Pages
+    needs: build
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}update.json
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

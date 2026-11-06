@@ -1,0 +1,30 @@
+version: 2
+updates:
+  # Rust dependencies: one grouped PR a month for minor and patch updates, merged
+  # automatically once CI is green (dependabot-automerge.yml). Major updates come
+  # as separate PRs for review. The cooldown skips versions younger than 7 days.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      cargo:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build
+
+  # GitHub Actions used by the workflows and the composite actions, in one PR a month.
+  - package-ecosystem: github-actions
+    directories: ["/", "/.github/actions/*"]
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

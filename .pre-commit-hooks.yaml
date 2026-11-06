@@ -1,0 +1,23 @@
+# Pre-commit integration for TcTidy. Consumers add to their .pre-commit-config.yaml:
+#
+#   - repo: https://github.com/ViKodex/TcTidy
+#     rev: vX.Y.Z  # a release tag; `pre-commit autoupdate` moves it to the latest
+#     hooks:
+#       - id: tctidy
+#
+# `language: system` means the `tctidy` binary must already be on PATH (install it
+# from the GitHub Releases); pre-commit does not build it.
+- id: tctidy
+  name: tctidy (format TwinCAT Structured Text)
+  description: Format TwinCAT 3 Structured Text in TwinCAT object files, in place.
+  entry: tctidy
+  language: system
+  files: '\.Tc(POU|GVL|DUT|IO)$'
+  pass_filenames: true
+- id: tctidy-check
+  name: tctidy (check TwinCAT Structured Text)
+  description: Fail if any TwinCAT Structured Text is not formatted (writes nothing).
+  entry: tctidy --check
+  language: system
+  files: '\.Tc(POU|GVL|DUT|IO)$'
+  pass_filenames: true

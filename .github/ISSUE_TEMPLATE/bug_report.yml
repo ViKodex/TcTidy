@@ -1,0 +1,64 @@
+name: Bug report
+description: Wrong output, a crash, or code that TcTidy changed or lost
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: TcTidy version
+      description: The output of `tctidy --version`, or the installer version.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      options:
+        - CLI
+        - TwinCAT XAE Shell extension
+    validations:
+      required: true
+  - type: dropdown
+    id: shell
+    attributes:
+      label: TwinCAT XAE Shell version
+      options:
+        - Not applicable (CLI only)
+        - TcXaeShell 15.0 (x86)
+        - TcXaeShell 17.0 (x64)
+        - Other
+  - type: textarea
+    id: input
+    attributes:
+      label: Minimal input
+      description: >-
+        The smallest ST or TwinCAT snippet that shows the problem. This issue is public:
+        rename or remove anything confidential before you paste it.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output or error
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Your `.tctidy.toml`, if you use one. `tctidy --print-config` shows the effective settings.
+      render: toml
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11, Ubuntu 24.04, ...

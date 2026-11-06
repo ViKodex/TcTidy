@@ -1,0 +1,70 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/tctidy-pretty",
+    "crates/tctidy-syntax",
+    "crates/tctidy-format",
+    "crates/tctidy-twincat",
+    "crates/tctidy",
+    "crates/tctidy-cli",
+    "xtask",
+]
+
+[workspace.package]
+version = "0.4.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ViKodex/TcTidy"
+# No crate is published to crates.io (about.toml relies on this to leave the
+# workspace's own crates out of the third-party notices).
+publish = false
+
+# Internal crates referenced by path; versions are pinned centrally below.
+[workspace.dependencies]
+# --- internal ---
+tctidy-pretty = { path = "crates/tctidy-pretty" }
+tctidy-syntax = { path = "crates/tctidy-syntax" }
+tctidy-format = { path = "crates/tctidy-format" }
+tctidy-twincat = { path = "crates/tctidy-twincat" }
+tctidy = { path = "crates/tctidy" }
+
+# --- syntax front-end ---
+rowan = "0.16"
+logos = "0.14"
+num_enum = "0.7"
+text-size = "1"
+
+# --- pretty / format ---
+smallvec = "1"
+unicode-width = "0.2"
+
+# --- twincat XML layer ---
+quick-xml = "0.42"
+memchr = "2"
+
+# --- configuration (.tctidy.toml) ---
+serde = { version = "1", features = ["derive"] }
+toml = { version = "1", default-features = false, features = ["parse", "serde"] }
+serde_json = "1"
+
+# --- cli ---
+clap = { version = "4", features = ["derive"] }
+similar = "3"
+ignore = "0.4"
+globset = "0.4"
+
+# --- dev / tests / benches ---
+insta = "1"
+proptest = "1"
+criterion = "0.5"
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+# Benchmarks mirror the release profile so micro-numbers match the shipped binary,
+# but keep line tables so profilers can attribute time to source.
+[profile.bench]
+lto = true
+codegen-units = 1
+debug = 1

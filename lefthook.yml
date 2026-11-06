@@ -1,0 +1,34 @@
+# Local Git hooks: run the CI checks before code leaves your machine.
+# Setup: install lefthook (https://lefthook.dev), then run `lefthook install`.
+#
+#   pre-commit : cargo fmt --check + clippy  (only when Rust files are staged)
+#   pre-push   : cargo test --workspace
+#
+# Hooks run under a non-login shell that may not have cargo on PATH, so each
+# command prepends the default rustup bin dir (harmless when cargo is already
+# on PATH, so this stays portable).
+
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      glob: "*.rs"
+      run: PATH="$HOME/.cargo/bin:$PATH" cargo fmt --all -- --check
+    clippy:
+      glob: "*.rs"
+      run: PATH="$HOME/.cargo/bin:$PATH" cargo clippy --workspace --all-targets --locked -- -D warnings
+    ascii-punctuation:
+      # Keep punctuation plain ASCII: reject a newly staged em dash (U+2014).
+      run: |
+        git diff --cached -U0 --no-color | perl -ne 'if (/^\+/ and /\xe2\x80\x94/) { print STDERR "Staged changes contain an em dash (U+2014): use a colon, a comma or parentheses.\n"; exit 1 }'
+
+pre-push:
+  commands:
+    test:
+      run: PATH="$HOME/.cargo/bin:$PATH" cargo test --workspace --locked
+
+# Commit messages follow the same punctuation rule as the tree.
+commit-msg:
+  commands:
+    ascii-punctuation:
+      run: perl -ne 'if (/\xe2\x80\x94/) { print STDERR "The commit message contains an em dash (U+2014): use a colon, a comma or parentheses.\n"; exit 1 }' {1}

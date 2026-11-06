@@ -1,0 +1,17 @@
+[package]
+name = "tctidy-format"
+description = "Lowers the ST typed AST to the pretty-printing IR under a centralized StyleConfig."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+tctidy-syntax.workspace = true
+tctidy-pretty.workspace = true
+smallvec.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+proptest.workspace = true

@@ -1,0 +1,28 @@
+[package]
+name = "tctidy-cli"
+description = "Command-line interface for TcTidy, the TwinCAT 3 Structured Text formatter."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "tctidy"
+path = "src/main.rs"
+
+[dependencies]
+tctidy.workspace = true
+clap.workspace = true
+similar.workspace = true
+ignore.workspace = true
+globset.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+
+# Extended attributes, which std has no API for, kept across atomic writes.
+[target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos"))'.dependencies]
+rustix = { version = "1.1.4", features = ["fs"] }

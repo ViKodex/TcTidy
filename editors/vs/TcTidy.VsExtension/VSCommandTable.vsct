@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+  <!-- Stock VS image catalog (KnownMonikers), so the buttons can carry a themed icon
+       without shipping a bitmap. -->
+  <Include href="KnownImageIds.vsct" />
+
+  <Commands package="guidTcTidyPackage">
+    <Menus>
+      <!-- TcXaeShell 17 filters extension-owned top-level menus. Keep TcTidy as a submenu of
+           the stock Tools menu so the same command surface is accepted by both shell generations. -->
+      <Menu guid="guidTcTidyCmdSet" id="TcTidyMenu" priority="0x0700" type="Menu">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyToolsGroup" />
+        <Strings>
+          <ButtonText>TcTidy</ButtonText>
+          <CommandName>TcTidy</CommandName>
+        </Strings>
+      </Menu>
+    </Menus>
+
+    <Groups>
+      <!-- Host the TcTidy submenu inside the stock Tools menu. Unlike a new top-level menu,
+           this placement does not require an isolated-shell allow-list entry. -->
+      <Group guid="guidTcTidyCmdSet" id="TcTidyToolsGroup" priority="0x0700">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
+      <!-- One group per surface, so each can carry its own Format button onto the right menus below:
+           the tree group goes on the Solution Explorer nodes, the editor group on the code window. -->
+      <Group guid="guidTcTidyCmdSet" id="TcTidyContextGroup" priority="0x0600" />
+      <Group guid="guidTcTidyCmdSet" id="TcTidyEditorGroup" priority="0x0600" />
+      <!-- Three sections of the TcTidy menu, separator-delimited: links first, options in the
+           middle (Formatting Settings and the two toggles parent here), Check for Updates and About
+           last, mirroring the Help-menu convention. -->
+      <Group guid="guidTcTidyCmdSet" id="TcTidyMenuLinksGroup" priority="0x0100">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenu" />
+      </Group>
+      <Group guid="guidTcTidyCmdSet" id="TcTidyMenuOptionsGroup" priority="0x0200">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenu" />
+      </Group>
+      <Group guid="guidTcTidyCmdSet" id="TcTidyMenuAboutGroup" priority="0x0300">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenu" />
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <!-- Tree-launched: format the whole selected POU (body + every method/action/property). -->
+      <Button guid="guidTcTidyCmdSet" id="FormatPouCommandId" priority="0x0100" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyContextGroup" />
+        <Icon guid="ImageCatalogGuid" id="FormatDocument" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Format with TcTidy</ButtonText>
+          <!-- Canonical name so the command is findable and rebindable in
+               Tools > Options > Environment > Keyboard. -->
+          <CanonicalName>TcTidy.FormatPou</CanonicalName>
+          <LocCanonicalName>TcTidy.FormatPou</LocCanonicalName>
+        </Strings>
+      </Button>
+      <!-- Editor-launched: format only the element on screen (you format what you clicked on). -->
+      <Button guid="guidTcTidyCmdSet" id="FormatElementCommandId" priority="0x0100" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyEditorGroup" />
+        <Icon guid="ImageCatalogGuid" id="FormatDocument" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Format with TcTidy</ButtonText>
+          <CanonicalName>TcTidy.FormatElement</CanonicalName>
+          <LocCanonicalName>TcTidy.FormatElement</LocCanonicalName>
+        </Strings>
+      </Button>
+      <!-- The TcTidy menu entries: static text, always visible, thin handlers in
+           Commands\MenuCommands.cs. -->
+      <Button guid="guidTcTidyCmdSet" id="DocumentationCommandId" priority="0x0100" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenuLinksGroup" />
+        <Strings>
+          <ButtonText>Documentation</ButtonText>
+          <CanonicalName>TcTidy.Documentation</CanonicalName>
+          <LocCanonicalName>TcTidy.Documentation</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidTcTidyCmdSet" id="ReportBugCommandId" priority="0x0200" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenuLinksGroup" />
+        <Strings>
+          <ButtonText>Report a Bug…</ButtonText>
+          <CanonicalName>TcTidy.ReportBug</CanonicalName>
+          <LocCanonicalName>TcTidy.ReportBug</LocCanonicalName>
+        </Strings>
+      </Button>
+      <!-- Opens tctidy's local settings page for the solution's .tctidy.toml in the browser,
+           like Report a Bug opens GitHub. First entry of the options section. -->
+      <Button guid="guidTcTidyCmdSet" id="FormattingSettingsCommandId" priority="0x0050" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenuOptionsGroup" />
+        <Strings>
+          <ButtonText>Formatting Settings…</ButtonText>
+          <CanonicalName>TcTidy.FormattingSettings</CanonicalName>
+          <LocCanonicalName>TcTidy.FormattingSettings</LocCanonicalName>
+        </Strings>
+      </Button>
+      <!-- Checkable toggle (OLECMDF_LATCHED via Command.Checked): write the end-to-end perf
+           report after each Format run. Persisted; takes effect on the next run, no restart. -->
+      <Button guid="guidTcTidyCmdSet" id="TogglePerfReportCommandId" priority="0x0100" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenuOptionsGroup" />
+        <Strings>
+          <ButtonText>Performance Report</ButtonText>
+          <CanonicalName>TcTidy.TogglePerfReport</CanonicalName>
+          <LocCanonicalName>TcTidy.TogglePerfReport</LocCanonicalName>
+        </Strings>
+      </Button>
+      <!-- Checkable toggle like Performance Report: the background update check at package load. -->
+      <Button guid="guidTcTidyCmdSet" id="ToggleUpdateCheckCommandId" priority="0x0200" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenuOptionsGroup" />
+        <Strings>
+          <ButtonText>Check for Updates Automatically</ButtonText>
+          <CanonicalName>TcTidy.ToggleUpdateCheck</CanonicalName>
+          <LocCanonicalName>TcTidy.ToggleUpdateCheck</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidTcTidyCmdSet" id="CheckForUpdatesCommandId" priority="0x0050" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenuAboutGroup" />
+        <Strings>
+          <ButtonText>Check for Updates</ButtonText>
+          <CanonicalName>TcTidy.CheckForUpdates</CanonicalName>
+          <LocCanonicalName>TcTidy.CheckForUpdates</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidTcTidyCmdSet" id="AboutCommandId" priority="0x0100" type="Button">
+        <Parent guid="guidTcTidyCmdSet" id="TcTidyMenuAboutGroup" />
+        <Strings>
+          <ButtonText>About TcTidy</ButtonText>
+          <CanonicalName>TcTidy.About</CanonicalName>
+          <LocCanonicalName>TcTidy.About</LocCanonicalName>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <!-- Surface the command on the same TwinCAT menus a POU formatter uses. The three Solution Explorer
+       menus (source object, folder, project) carry the whole-POU command; the ST code-editor right-click
+       carries the single-element command. All are menus of Beckhoff's PLC-project command set.
+       Priority 0x0001: lower sorts earlier on the parent menu, so Format with TcTidy lands above
+       other formatters' entries (ties between independent VSIXes still fall back to merge order). -->
+  <CommandPlacements>
+    <!-- PLC source object (POU / FB / GVL / DUT) -->
+    <CommandPlacement guid="guidTcTidyCmdSet" id="TcTidyContextGroup" priority="0x0001">
+      <Parent guid="guidTwinCATPlcProjectCmdSet" id="PlcSourceObjectMenu" />
+    </CommandPlacement>
+    <!-- Folder inside the PLC project -->
+    <CommandPlacement guid="guidTcTidyCmdSet" id="TcTidyContextGroup" priority="0x0001">
+      <Parent guid="guidTwinCATPlcProjectCmdSet" id="PlcFolderMenu" />
+    </CommandPlacement>
+    <!-- PLC project node -->
+    <CommandPlacement guid="guidTcTidyCmdSet" id="TcTidyContextGroup" priority="0x0001">
+      <Parent guid="guidTwinCATPlcProjectCmdSet" id="PlcProjectMenu" />
+    </CommandPlacement>
+    <!-- ST code-editor right-click (the PLC code window context menu) -->
+    <CommandPlacement guid="guidTcTidyCmdSet" id="TcTidyEditorGroup" priority="0x0001">
+      <Parent guid="guidTwinCATPlcProjectCmdSet" id="PlcCodeWindowMenu" />
+    </CommandPlacement>
+  </CommandPlacements>
+
+  <KeyBindings>
+    <!-- Ctrl+K, Ctrl+T ("Tidy") formats the open element. Global scope (guidVSStd97), not
+         editor scope: the TwinCAT ST editor is a custom editor, not the VS text
+         editor, so a binding scoped to the VS text-editor context would never fire there.
+         The command already degrades gracefully outside an ST editor with a short message. -->
+    <KeyBinding guid="guidTcTidyCmdSet" id="FormatElementCommandId"
+                editor="guidVSStd97"
+                key1="K" mod1="Control" key2="T" mod2="Control" />
+  </KeyBindings>
+
+  <Symbols>
+    <GuidSymbol name="guidTcTidyPackage" value="{279abe1e-4a2a-4ad6-a688-0751c8f9af07}" />
+    <GuidSymbol name="guidTcTidyCmdSet" value="{bde8f5ed-171f-46dc-903f-69c1242719c3}">
+      <IDSymbol name="TcTidyContextGroup" value="0x0001" />
+      <IDSymbol name="TcTidyEditorGroup" value="0x0002" />
+      <IDSymbol name="TcTidyToolsGroup" value="0x0003" />
+      <IDSymbol name="FormatPouCommandId" value="0x0100" />
+      <IDSymbol name="FormatElementCommandId" value="0x0101" />
+      <IDSymbol name="DocumentationCommandId" value="0x0102" />
+      <IDSymbol name="ReportBugCommandId" value="0x0103" />
+      <IDSymbol name="AboutCommandId" value="0x0104" />
+      <IDSymbol name="TogglePerfReportCommandId" value="0x0105" />
+      <IDSymbol name="FormattingSettingsCommandId" value="0x0106" />
+      <IDSymbol name="CheckForUpdatesCommandId" value="0x0107" />
+      <IDSymbol name="ToggleUpdateCheckCommandId" value="0x0108" />
+      <IDSymbol name="TcTidyMenu" value="0x1000" />
+      <IDSymbol name="TcTidyMenuLinksGroup" value="0x1100" />
+      <IDSymbol name="TcTidyMenuOptionsGroup" value="0x1200" />
+      <IDSymbol name="TcTidyMenuAboutGroup" value="0x1300" />
+    </GuidSymbol>
+
+    <!-- Beckhoff's TwinCAT PLC-project command set. Menu ids (read from the IDE's own command
+         table via Export Settings): 0x9011 source object, 0x9010 folder, 0x9013 PLC project,
+         0x9017 ST code-editor (PLC code window). -->
+    <GuidSymbol name="guidTwinCATPlcProjectCmdSet" value="{3B11520B-7E70-4008-A6CF-B60AE84E12B1}">
+      <IDSymbol name="PlcSourceObjectMenu" value="0x9011" />
+      <IDSymbol name="PlcFolderMenu" value="0x9010" />
+      <IDSymbol name="PlcProjectMenu" value="0x9013" />
+      <IDSymbol name="PlcCodeWindowMenu" value="0x9017" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>

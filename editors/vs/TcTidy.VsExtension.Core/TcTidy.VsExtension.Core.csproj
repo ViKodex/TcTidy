@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- netstandard2.0 so this pure core is consumable by both the net472 VSIX shell
+       and the net8.0 xUnit tests. No Visual Studio dependency. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>TcTidy.VsExtension.Core</AssemblyName>
+    <RootNamespace>TcTidy.VsExtension.Core</RootNamespace>
+    <!-- File properties of the DLL shipped in the VSIX, matching the shell's AssemblyInfo.cs. -->
+    <Company>ViKodex</Company>
+    <Product>TcTidy for TwinCAT</Product>
+    <Copyright>Copyright 2026 ViKodex</Copyright>
+    <!-- Stable GUID so the old-style net472 VSIX shell can resolve this SDK-style reference. -->
+    <ProjectGuid>{7B3F9C12-8E4A-4D6B-A1C5-2F9E0D3B6A84}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

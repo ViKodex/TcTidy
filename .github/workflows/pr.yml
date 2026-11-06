@@ -1,0 +1,104 @@
+name: PR
+
+# Checks the pull request itself (its title and its changelog entry), not the
+# code. It uses pull_request_target so it can comment on pull requests from
+# forks: it runs the workflow from main and never checks out or runs PR code.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+
+permissions: {}
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    name: PR title
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # The title becomes the squashed commit on main.
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        id: lint
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          scopes: |
+            syntax
+            pretty
+            format
+            twincat
+            cli
+            lib
+            vsix
+            installer
+            ci
+            release
+            deps
+            docs
+          requireScope: false
+      - name: Explain how to fix the title
+        if: always() && steps.lint.outputs.error_message != null
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: pr-title
+          message: |
+            Thanks for the pull request! Its title becomes the commit message on `main`, so it
+            must follow [Conventional Commits](https://www.conventionalcommits.org):
+            `type(scope): subject`, for example `fix(format): keep comments before ELSE`.
+            Please edit the title; this check runs again on its own. The log of the failing
+            **PR title** check says what is wrong.
+      - name: Remove the explanation once the title is valid
+        if: steps.lint.outputs.error_message == null
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: pr-title
+          delete: true
+
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Require a CHANGELOG entry for user-facing changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ github.event.pull_request.title }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+        run: |
+          if [[ "$SKIP" == true ]]; then
+            echo "Skipped: the pull request has the no-changelog label."
+            exit 0
+          fi
+          # feat, fix and perf need an entry, and so does any breaking change (`!`).
+          user_facing='^((feat|fix|perf)(\([^)]*\))?!?|[a-z]+(\([^)]*\))?!): '
+          if [[ ! "$TITLE" =~ $user_facing ]]; then
+            echo "No entry needed for this type of change."
+            exit 0
+          fi
+          if gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$NUMBER/files" --jq '.[].filename' |
+            grep -qx 'CHANGELOG.md'; then
+            echo "CHANGELOG.md is updated."
+            exit 0
+          fi
+          echo "::error title=Missing CHANGELOG entry::Add a line under '## [Unreleased]' in CHANGELOG.md that describes this change for users. See CONTRIBUTING.md."
+          exit 1

@@ -1,0 +1,1225 @@
+/* TcTidy settings page. Laid out like the formatting options of Visual
+   Studio: settings on the left, code formatted with them on the right. System
+   fonts, Fluent-style controls, one accent colour; light and dark follow the
+   system, and Windows high contrast is respected. */
+
+:root {
+  color-scheme: light dark;
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, "SF Mono", Menlo, "Liberation Mono", monospace;
+  --appbar-h: 48px;
+  --toolbar-h: 56px;
+
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --bg-hover: #f5f5f5;
+  --bg-pressed: #e8e8e8;
+  --bg-row-hover: #fafafa;
+  --bg-selected: #eff5fc;
+  --bg-group: #f0f0f0;
+  --logo-ink: #1c2c3d;
+  --logo-accent: #f88a24;
+  --bg-input: #ffffff;
+  --bg-disabled: #f0f0f0;
+  --border: #e6e6e6;
+  --border-strong: #d1d1d1;
+  --border-hover: #c2c2c2;
+  --border-disabled: #e0e0e0;
+  --border-input: #d1d1d1;
+  --border-input-bottom: #616161;
+  --text: #242424;
+  --text-2: #616161;
+  --text-3: #8f8f8f;
+  --text-disabled: #bdbdbd;
+  --text-ws: #c8c8c8;
+  --accent: #0f6cbd;
+  --accent-hover: #115ea3;
+  --accent-pressed: #0f548c;
+  --accent-text: #0f6cbd;
+  --on-accent: #ffffff;
+  --focus: #0f6cbd;
+  --switch-off: #616161;
+  --add-bg: #eefbf0;
+  --add-gutter: #d8f4dd;
+  --add-mark: #b4e9be;
+  --add-sign: #0e700e;
+  --del-bg: #fff1f0;
+  --del-gutter: #ffe2df;
+  --del-mark: #ffc8c2;
+  --del-sign: #b42318;
+  --warn-bg: #fff9f5;
+  --warn-border: #fdcfb4;
+  --warn-icon: #bc4b09;
+  --error-bg: #fdf3f4;
+  --error-border: #eeacb2;
+  --error-icon: #c50f1f;
+  --error-text: #b10e1c;
+}
+
+/* Dark: the system's choice unless the page's switch picked light, or the
+   switch's pick. The two rules carry the same values. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #1f1f1f;
+    --bg-subtle: #191919;
+    --bg-hover: #2a2a2a;
+    --bg-pressed: #333333;
+    --bg-row-hover: #242424;
+    --bg-selected: #1c2733;
+    --bg-group: #2b2b2b;
+    --logo-ink: #e6edf3;
+    --bg-input: #242424;
+    --bg-disabled: #262626;
+    --border: #2e2e2e;
+    --border-strong: #454545;
+    --border-hover: #5c5c5c;
+    --border-disabled: #333333;
+    --border-input: #454545;
+    --border-input-bottom: #8f8f8f;
+    --text: #e3e3e3;
+    --text-2: #a6a6a6;
+    --text-3: #737373;
+    --text-disabled: #5c5c5c;
+    --text-ws: #4d4d4d;
+    --accent: #0f6cbd;
+    --accent-hover: #1a7ad0;
+    --accent-pressed: #0f5aa0;
+    --accent-text: #57a8f5;
+    --on-accent: #ffffff;
+    --focus: #57a8f5;
+    --switch-off: #a6a6a6;
+    --add-bg: rgba(46, 160, 67, 0.12);
+    --add-gutter: rgba(46, 160, 67, 0.22);
+    --add-mark: rgba(46, 160, 67, 0.42);
+    --add-sign: #74cf74;
+    --del-bg: rgba(248, 81, 73, 0.1);
+    --del-gutter: rgba(248, 81, 73, 0.18);
+    --del-mark: rgba(248, 81, 73, 0.36);
+    --del-sign: #ff8e85;
+    --warn-bg: #2a1e12;
+    --warn-border: #5e3b16;
+    --warn-icon: #f2954c;
+    --error-bg: #2d1416;
+    --error-border: #6a2028;
+    --error-icon: #ec5463;
+    --error-text: #ff9ca6;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1f1f1f;
+  --bg-subtle: #191919;
+  --bg-hover: #2a2a2a;
+  --bg-pressed: #333333;
+  --bg-row-hover: #242424;
+  --bg-selected: #1c2733;
+  --bg-group: #2b2b2b;
+  --logo-ink: #e6edf3;
+  --bg-input: #242424;
+  --bg-disabled: #262626;
+  --border: #2e2e2e;
+  --border-strong: #454545;
+  --border-hover: #5c5c5c;
+  --border-disabled: #333333;
+  --border-input: #454545;
+  --border-input-bottom: #8f8f8f;
+  --text: #e3e3e3;
+  --text-2: #a6a6a6;
+  --text-3: #737373;
+  --text-disabled: #5c5c5c;
+  --text-ws: #4d4d4d;
+  --accent: #0f6cbd;
+  --accent-hover: #1a7ad0;
+  --accent-pressed: #0f5aa0;
+  --accent-text: #57a8f5;
+  --on-accent: #ffffff;
+  --focus: #57a8f5;
+  --switch-off: #a6a6a6;
+  --add-bg: rgba(46, 160, 67, 0.12);
+  --add-gutter: rgba(46, 160, 67, 0.22);
+  --add-mark: rgba(46, 160, 67, 0.42);
+  --add-sign: #74cf74;
+  --del-bg: rgba(248, 81, 73, 0.1);
+  --del-gutter: rgba(248, 81, 73, 0.18);
+  --del-mark: rgba(248, 81, 73, 0.36);
+  --del-sign: #ff8e85;
+  --warn-bg: #2a1e12;
+  --warn-border: #5e3b16;
+  --warn-icon: #f2954c;
+  --error-bg: #2d1416;
+  --error-border: #6a2028;
+  --error-icon: #ec5463;
+  --error-text: #ff9ca6;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* ---- base ---------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/20px var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ---- app bar --------------------------------------------------------------- */
+
+.appbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: var(--appbar-h);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.appbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* The logo, inline so it follows the page's theme rather than the system's. Its
+   cut-outs show the app bar through. */
+.appbar-icon {
+  display: block;
+}
+
+.appbar-icon .ink {
+  fill: var(--logo-ink);
+  stroke: var(--logo-ink);
+}
+
+.appbar-icon .accent {
+  stroke: var(--logo-accent);
+}
+
+.appbar-product {
+  font-weight: 600;
+}
+
+.appbar-sep {
+  color: var(--text-3);
+}
+
+.appbar h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.appbar-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Right-to-left so a long path is cut at its start and keeps the file name. */
+.file-path {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  font: 12px/16px var(--mono);
+  color: var(--text-2);
+}
+
+.file-tag {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.appbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.status {
+  margin-right: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.status.dirty {
+  color: var(--text);
+}
+
+.status.offline {
+  color: var(--error-text);
+}
+
+/* Light and dark switch: two icon buttons in one frame. */
+.theme {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: 8px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+.theme-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.theme-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.theme-btn[aria-pressed="true"] {
+  background: var(--bg-pressed);
+  color: var(--text);
+}
+
+.theme-btn svg {
+  display: block;
+}
+
+/* ---- buttons and fields --------------------------------------------------------- */
+
+.btn {
+  height: 32px;
+  min-width: 80px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--bg-pressed);
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--accent-pressed);
+}
+
+.btn:disabled {
+  border-color: var(--border-disabled);
+  background: var(--bg-disabled);
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.btn-small {
+  height: 24px;
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.input,
+.select select {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-input);
+  border-bottom-color: var(--border-input-bottom);
+  border-radius: 4px;
+  background: var(--bg-input);
+}
+
+.input:focus,
+.select select:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+
+.input:disabled,
+.select select:disabled {
+  border-color: var(--border-disabled);
+  background: var(--bg-disabled);
+  color: var(--text-disabled);
+}
+
+.select {
+  position: relative;
+  display: inline-block;
+}
+
+.select select {
+  min-width: 168px;
+  padding-right: 32px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.select::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--text-2);
+  border-bottom: 1.5px solid var(--text-2);
+  transform: translateY(-75%) rotate(45deg);
+  pointer-events: none;
+}
+
+.number {
+  width: 96px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* On/off switch, as in Windows settings. */
+.switch-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.switch-text {
+  min-width: 24px;
+  text-align: right;
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--switch-off);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--switch-off);
+  transition: transform 0.12s ease;
+}
+
+.switch[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.switch[aria-checked="true"]::after {
+  background: var(--on-accent);
+  transform: translateX(20px);
+}
+
+.switch:hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+.switch[aria-checked="true"]:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.switch:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---- banners ---------------------------------------------------------------- */
+
+.banners:empty {
+  display: none;
+}
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--warn-border);
+  background: var(--warn-bg);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.banner.error {
+  border-bottom-color: var(--error-border);
+  background: var(--error-bg);
+}
+
+.banner-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--warn-icon);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.banner.error .banner-icon {
+  background: var(--error-icon);
+}
+
+.banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-text ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.banner-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+/* ---- workspace -------------------------------------------------------------- */
+
+/* Row 3, the one that stretches, also when no banner fills row 2. The preview
+   shows code side by side, so it takes two thirds of the width; the group
+   navigation only comes with a window wide enough to spare it. */
+.workspace {
+  grid-row: 3;
+  display: grid;
+  grid-template-columns: minmax(480px, 1fr) minmax(0, 2fr);
+  min-height: 0;
+}
+
+.nav {
+  display: none;
+}
+
+@media (min-width: 1700px) {
+  .workspace {
+    grid-template-columns: 216px minmax(480px, 1fr) minmax(0, 2fr);
+  }
+
+  .nav {
+    display: block;
+  }
+}
+
+.nav,
+.settings,
+.inspector {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ---- group navigation --------------------------------------------------------------- */
+
+.nav {
+  padding: 12px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.nav-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-list a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border-radius: 4px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-list a:hover {
+  background: var(--bg-hover);
+}
+
+.nav-list a.active {
+  background: var(--bg-hover);
+  font-weight: 600;
+}
+
+.nav-list a.active::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.nav-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-2);
+}
+
+/* ---- settings list ---------------------------------------------------------------- */
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: var(--toolbar-h);
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.search {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search .input {
+  width: 100%;
+  padding-left: 32px;
+}
+
+/* A magnifier drawn with borders, so no image is needed. */
+.search::before,
+.search::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.search::before {
+  top: 10px;
+  left: 11px;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--text-2);
+  border-radius: 50%;
+}
+
+.search::after {
+  top: 19px;
+  left: 19px;
+  width: 1.5px;
+  height: 5px;
+  background: var(--text-2);
+  transform: rotate(-45deg);
+}
+
+.group {
+  scroll-margin-top: var(--toolbar-h);
+}
+
+/* A tinted band with an accent bar, a size above the setting labels, so a
+   section reads as a heading and not as one more setting. */
+.group-title {
+  position: sticky;
+  top: var(--toolbar-h);
+  z-index: 2;
+  margin: 0;
+  padding: 12px 24px 12px 21px;
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  background: var(--bg-group);
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.group:first-child .group-title {
+  border-top: 0;
+}
+
+.setting {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting:hover {
+  background: var(--bg-row-hover);
+}
+
+.setting.selected {
+  background: var(--bg-selected);
+}
+
+/* Modified settings carry a bar in the margin, as in VS Code. */
+.setting.modified::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 12px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.setting-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-label {
+  font-weight: 600;
+}
+
+.setting-desc {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.setting-error {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--error-text);
+}
+
+.setting-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex: none;
+  min-height: 32px;
+}
+
+.reset {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+.reset:hover {
+  text-decoration: underline;
+}
+
+.reset.unused {
+  visibility: hidden;
+}
+
+.empty {
+  margin: 0;
+  padding: 32px 24px;
+  color: var(--text-2);
+}
+
+.footnote {
+  margin: 0;
+  padding: 16px 24px 32px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-3);
+}
+
+/* ---- preview panel ----------------------------------------------------------- */
+
+.inspector {
+  border-left: 1px solid var(--border);
+  background: var(--bg-subtle);
+  container-type: inline-size;
+}
+
+/* Lined up with the settings toolbar. */
+.inspector-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--toolbar-h);
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.inspector-bar h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.key {
+  font: 12px/16px var(--mono);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.inspector-meta {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+/* The selected setting's sample, its default beside its current value; under
+   it, the user's code: the declaration above the implementation, each typed
+   on the left and formatted on the right, filling the rest of the height. */
+.preview {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 2fr) minmax(0, 3fr);
+  gap: 12px;
+  height: calc(100% - var(--toolbar-h));
+  min-height: 720px;
+  padding: 16px 24px 24px;
+}
+
+.sample-blocks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* As tall as the tallest sample at its default (`--sample-lines`, set by the
+   page), whatever is shown: changing a setting moves nothing below. */
+.sample .code {
+  flex: none;
+  height: calc(var(--sample-lines, 8) * 20px + 16px);
+}
+
+.code-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.code-bar h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.code-bar-note {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.preview-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+/* Too narrow for two panes of code side by side: the sample's two and the
+   code's four stack, and the panel scrolls. */
+@container (max-width: 688px) {
+  .sample-blocks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .preview {
+    grid-template-rows: none;
+    height: auto;
+  }
+
+  .preview-row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(2, 280px);
+  }
+}
+
+.code-block {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.code-block:focus-within {
+  border-color: var(--accent);
+}
+
+.code-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.code-role {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.code-aside {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.code-aside.error {
+  color: var(--error-text);
+}
+
+.code {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 0;
+  font: 13px/20px var(--mono);
+  tab-size: 4;
+}
+
+.code:focus-visible {
+  outline: none;
+}
+
+.code-lines {
+  display: table;
+  min-width: 100%;
+}
+
+.line {
+  display: table-row;
+}
+
+.line > span {
+  display: table-cell;
+  white-space: pre;
+}
+
+/* The number and sign columns are as wide in both panes of a row, so the
+   code starts at the same place in each (`--digits` is set by the page), and
+   stay in view when the code is scrolled sideways. */
+.line-no,
+.line-sign {
+  position: sticky;
+  background: var(--bg);
+  color: var(--text-3);
+  user-select: none;
+}
+
+.line-no {
+  left: 0;
+  width: calc(var(--digits, 1) * 1ch + 20px);
+  padding: 0 8px 0 12px;
+  text-align: right;
+}
+
+/* One character wide even when empty, so a sign appearing does not push the
+   code to the right. */
+.line-sign {
+  left: calc(var(--digits, 1) * 1ch + 20px);
+  width: calc(1ch + 8px);
+  min-width: calc(1ch + 8px);
+  padding-right: 8px;
+}
+
+.line-code {
+  padding-right: 16px;
+}
+
+.line.del {
+  background: var(--del-bg);
+}
+
+.line.add {
+  background: var(--add-bg);
+}
+
+/* Opaque, so the code scrolled under them does not show through. */
+.line.del > .line-no,
+.line.del > .line-sign {
+  background: linear-gradient(var(--del-gutter), var(--del-gutter)), var(--bg);
+  color: var(--del-sign);
+}
+
+.line.add > .line-no,
+.line.add > .line-sign {
+  background: linear-gradient(var(--add-gutter), var(--add-gutter)), var(--bg);
+  color: var(--add-sign);
+}
+
+.line mark {
+  border-radius: 2px;
+  color: inherit;
+}
+
+.line.del mark {
+  background: var(--del-mark);
+}
+
+.line.add mark {
+  background: var(--add-mark);
+}
+
+/* Whitespace a change adds or removes keeps its glyphs readable on the mark. */
+.line mark .ws {
+  color: var(--text-2);
+}
+
+/* Leading spaces and tabs, drawn faintly so indentation shows. */
+.ws {
+  color: var(--text-ws);
+}
+
+/* Typed code: a text area with line numbers beside it. */
+.editor {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  background: var(--bg);
+  font: 13px/20px var(--mono);
+}
+
+/* The width of the formatted code's number and sign columns. */
+.editor-gutter {
+  flex: none;
+  width: calc((var(--digits, 1) + 1) * 1ch + 28px);
+  overflow: hidden;
+  padding: 8px calc(1ch + 16px) 0 12px;
+  color: var(--text-3);
+  text-align: right;
+  white-space: pre;
+  user-select: none;
+}
+
+.editor-input {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 16px 8px 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: var(--bg);
+  tab-size: 4;
+}
+
+.noscript {
+  padding: 24px;
+}
+
+/* ---- smaller windows ---------------------------------------------------------------- */
+
+@media (max-width: 1100px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 46vw, 560px);
+  }
+}
+
+@media (max-width: 760px) {
+  .appbar {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    padding: 8px 12px;
+  }
+
+  .appbar-file {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  /* Shrinks to the window on a phone, the status wrapping. */
+  .appbar-actions {
+    flex-shrink: 1;
+    margin-left: auto;
+  }
+
+  .status {
+    white-space: normal;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 42%);
+  }
+
+  .inspector {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .toolbar,
+  .inspector-bar {
+    padding: 0 12px;
+  }
+
+  .group-title {
+    padding: 10px 16px 10px 13px;
+  }
+
+  .setting {
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 12px 20px;
+  }
+
+  .setting.modified::before {
+    left: 8px;
+  }
+
+  .setting-control {
+    justify-content: flex-start;
+  }
+
+  .preview {
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch::after {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .switch[aria-checked="true"],
+  .setting.modified::before,
+  .nav-list a.active::before {
+    background: Highlight;
+  }
+
+  .switch::after {
+    background: ButtonText;
+  }
+
+  .switch[aria-checked="true"]::after {
+    background: HighlightText;
+  }
+}

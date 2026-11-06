@@ -1,0 +1,61 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+# Backtrace / debug symbols
+*.pdb
+
+# Local run artifacts: may contain source from your own projects.
+diff.txt
+*.diff
+
+# Locally built binaries (e.g. the cross-compiled Windows exe at the repo root).
+*.exe
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# .NET (the Visual Studio extension under editors/vs)
+**/bin/
+**/obj/
+*.user
+
+# BenchmarkDotNet output (the C# spawn-cost benchmarks)
+BenchmarkDotNet.Artifacts/
+
+# Inno Setup installer output
+editors/vs/installer/dist/
+
+# Third-party license evidence generated at release time from Cargo and
+# cargo-about, bundled into archives/the VSIX, and never committed.
+THIRD-PARTY-NOTICES.md
+CARGO-DEPENDENCIES.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Personal lefthook overrides
+lefthook-local.yml
+
+# Personal AI assistant instructions and settings
+AGENTS.md
+AGENTS.override.md
+CLAUDE.md
+CLAUDE.local.md
+GEMINI.md
+.claude/
+.codex/
+.gemini/
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.clinerules
+.roo/
+.continue/
+.aider*
+.github/copilot-instructions.md

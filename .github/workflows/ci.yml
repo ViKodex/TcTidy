@@ -1,0 +1,125 @@
+name: CI
+
+# Builds and tests every pull request and every push to main. The `CI` job at
+# the end is the one required check for merging.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Verify release metadata
+        run: cargo xtask release check
+      - name: Verify generated keyword sources
+        run: cargo run -p xtask --locked -- keywords --check
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Lint
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Build all targets
+        run: cargo build --workspace --all-targets --locked
+      - name: Test workspace
+        # The corpus tests skip here (no corpus); the Corpus job runs them.
+        run: cargo test --workspace --locked
+      - uses: ./.github/actions/vsix-integration
+        with:
+          setup-rust: 'false'
+      # Fails if a dependency carries a license outside about.toml's allow-list,
+      # so the pull request that adds it fails instead of the release.
+      - uses: ./.github/actions/setup-cargo-about
+      - name: Verify dependency licenses
+        run: cargo xtask licenses generate
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test Windows release helpers
+        shell: pwsh
+        run: ./scripts/release/tests/test-assert-version-text.ps1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build all targets
+        run: cargo build --workspace --all-targets --locked
+      - name: Test workspace
+        run: cargo test --workspace --locked
+      - uses: ./.github/actions/vsix-integration
+        with:
+          setup-rust: 'false'
+      - uses: ./.github/actions/setup-cargo-about
+      - name: Generate exact Cargo evidence for the distributed binary
+        run: cargo xtask licenses generate
+      - uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
+      - name: Read the product version
+        id: product-version
+        shell: pwsh
+        run: echo "version=$(cargo xtask release version)" >> $env:GITHUB_OUTPUT
+      - name: Build and validate both XAE payloads
+        shell: pwsh
+        env:
+          PRODUCT_VERSION: ${{ steps.product-version.outputs.version }}
+        run: |
+          & ./scripts/release/build-vsix.ps1 `
+            -ProductVersion $env:PRODUCT_VERSION `
+            -Payload15Directory installer-payload-xae15 `
+            -Payload17Directory installer-payload-xae17
+      # Inno Setup 6 is preinstalled on the Windows runner image.
+      - name: Test installer discovery, security, upgrade and uninstall
+        shell: pwsh
+        run: |
+          & ./scripts/release/test-installer.ps1 `
+            -Payload15Directory installer-payload-xae15 `
+            -Payload17Directory installer-payload-xae17
+
+  corpus:
+    name: Corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # The projects and commits are pinned in xtask/public-corpus.txt.
+      - name: Fetch the public corpus
+        run: cargo xtask corpus fetch
+      - name: Test idempotence, comment preservation and canonicalization
+        run: >-
+          cargo test -p tctidy --locked
+          --test corpus_invariants --test corpus_comments --test canonicalization
+          -- --nocapture
+
+  ci:
+    name: CI
+    if: always()
+    needs: [linux, windows, corpus]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every job
+        run: |
+          [[ '${{ needs.linux.result }}' == success ]]
+          [[ '${{ needs.windows.result }}' == success ]]
+          [[ '${{ needs.corpus.result }}' == success ]]

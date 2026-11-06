@@ -1,0 +1,8 @@
+# Exact public asset set. Local build scripts produce these files and
+# `scripts/release/validate-candidate.sh` expands the placeholders and validates them.
+tctidy-{tag}-x86_64-unknown-linux-gnu.tar.gz
+tctidy-{tag}-x86_64-unknown-linux-gnu.tar.gz.sha256
+tctidy-{tag}-x86_64-pc-windows-msvc.zip
+tctidy-{tag}-x86_64-pc-windows-msvc.zip.sha256
+TcTidySetup-{version}.exe
+TcTidySetup-{version}.exe.sha256

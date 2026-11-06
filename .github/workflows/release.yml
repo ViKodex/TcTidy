@@ -1,0 +1,322 @@
+name: Release
+
+# Pushing a stable annotated tag vX.Y.Z builds, checks and publishes the release
+# of the version already stored in Cargo.toml. See MAINTAINING.md.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  preflight:
+    name: release preflight
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      asset-tag: ${{ steps.version.outputs.asset-tag }}
+      release-sha: ${{ steps.version.outputs.release-sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Verify source version and tag provenance
+        id: version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          version="$(cargo xtask release version)"
+          cargo xtask release check --tag "$RELEASE_TAG"
+          [[ "$(git cat-file -t "$RELEASE_TAG")" == "tag" ]] || {
+            echo "release tags must be annotated (or signed)" >&2
+            exit 1
+          }
+          [[ "$(git rev-list -n 1 "$RELEASE_TAG")" == "$RELEASE_SHA" ]] || {
+            echo "the release tag does not resolve to the workflow SHA" >&2
+            exit 1
+          }
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$RELEASE_SHA" origin/main || {
+            echo "the tagged commit is not contained in origin/main" >&2
+            exit 1
+          }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "asset-tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "release-sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+
+  core-gate:
+    name: release test (${{ matrix.os }})
+    needs: preflight
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo build --workspace --all-targets --locked
+      - run: cargo test --workspace --locked
+
+  lint:
+    name: release lint
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Verify generated keyword sources
+        run: cargo run -p xtask --locked -- keywords --check
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  vsix-integration:
+    name: release vsix-integration (${{ matrix.os }})
+    needs: preflight
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/vsix-integration
+
+  notices:
+    name: release notices
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: notices
+      - uses: ./.github/actions/setup-cargo-about
+      - name: Generate target-specific runtime evidence
+        run: |
+          cargo xtask licenses generate \
+            --target x86_64-unknown-linux-gnu \
+            --inventory notices/linux/CARGO-DEPENDENCIES.json \
+            --notice notices/linux/THIRD-PARTY-NOTICES.md \
+            --metadata-output notices/linux/cargo-metadata.json \
+            --about-output notices/linux/cargo-about.json \
+            --tree-output notices/linux/cargo-tree.txt
+          cargo xtask licenses generate \
+            --inventory notices/windows/CARGO-DEPENDENCIES.json \
+            --notice notices/windows/THIRD-PARTY-NOTICES.md \
+            --metadata-output notices/windows/cargo-metadata.json \
+            --about-output notices/windows/cargo-about.json \
+            --tree-output notices/windows/cargo-tree.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: notices-${{ github.run_attempt }}
+          path: notices/
+          if-no-files-found: error
+          retention-days: 1
+
+  linux-assets:
+    name: release Linux assets
+    needs: [preflight, notices]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: notices-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-input
+      - uses: ./.github/actions/setup-cargo-about
+      - name: Build and verify the Linux candidate
+        shell: bash
+        env:
+          ASSET_TAG: ${{ needs.preflight.outputs.asset-tag }}
+          EXPECTED_SHA: ${{ needs.preflight.outputs.release-sha }}
+        run: |
+          scripts/release/build-linux.sh \
+            "$ASSET_TAG" "$EXPECTED_SHA" dist \
+            "$RUNNER_TEMP/release-input/linux/THIRD-PARTY-NOTICES.md" \
+            "$RUNNER_TEMP/release-input/linux/CARGO-DEPENDENCIES.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-linux-${{ github.run_attempt }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-assets:
+    name: release Windows assets
+    needs: [preflight, notices, vsix-integration]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: notices-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-input
+      - uses: ./.github/actions/setup-cargo-about
+      # Inno Setup 6 is preinstalled on the Windows runner image.
+      - name: Build and verify the Windows candidate
+        shell: powershell
+        env:
+          ASSET_TAG: ${{ needs.preflight.outputs.asset-tag }}
+          EXPECTED_SHA: ${{ needs.preflight.outputs.release-sha }}
+        run: |
+          & ./scripts/release/build-windows.ps1 `
+            -Tag $env:ASSET_TAG `
+            -ExpectedSha $env:EXPECTED_SHA `
+            -OutputDirectory dist `
+            -NoticesFile "$env:RUNNER_TEMP/release-input/windows/THIRD-PARTY-NOTICES.md" `
+            -CargoInventoryFile "$env:RUNNER_TEMP/release-input/windows/CARGO-DEPENDENCIES.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-windows-${{ github.run_attempt }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  validate-assets:
+    name: validate release bundle
+    needs: [preflight, core-gate, lint, vsix-integration, linux-assets, windows-assets]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dist
+          merge-multiple: true
+      - name: Validate exact assets and checksums
+        env:
+          ASSET_TAG: ${{ needs.preflight.outputs.asset-tag }}
+          EXPECTED_SHA: ${{ needs.preflight.outputs.release-sha }}
+        run: >-
+          scripts/release/validate-candidate.sh
+          "$ASSET_TAG" "$EXPECTED_SHA" "$RUNNER_TEMP/dist"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-bundle-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: publish complete release
+    needs: [preflight, validate-assets]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-bundle-${{ github.run_attempt }}
+          path: dist
+      - name: Refuse a published release and replace only a stale draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"
+            [[ "$is_draft" == "true" ]] || {
+              echo "release $RELEASE_TAG is already published" >&2
+              exit 1
+            }
+            gh release delete "$RELEASE_TAG" --yes
+          fi
+      - uses: taiki-e/create-gh-release-action@eba8ea96c86cca8a37f1b56e94b4d13301fba651 # v1.11.0
+        with:
+          changelog: CHANGELOG.md
+          title: TcTidy v$version
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Recompute and verify the final candidate checksums
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: cargo xtask release check-assets dist --tag "$RELEASE_TAG"
+      - name: Upload the complete asset set
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" dist/*
+      - name: Download the release asset listing
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            > "$RUNNER_TEMP/release-assets.json"
+      - name: Verify GitHub asset digests before publication
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cargo xtask release verify-upload \
+            "$RELEASE_TAG" dist "$RUNNER_TEMP/release-assets.json"
+      - name: Publish the verified release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+      # Runs on main, the only ref the github-pages environment deploys from.
+      - name: Announce the release to installed extensions
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run update-manifest.yml --repo "$GITHUB_REPOSITORY" --ref main

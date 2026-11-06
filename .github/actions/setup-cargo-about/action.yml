@@ -1,0 +1,11 @@
+name: Set up cargo-about
+description: Install the pinned official license tool binary without compiling it.
+
+runs:
+  using: composite
+  steps:
+    - uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2
+      with:
+        tool: cargo-about@0.9.1
+        checksum: true
+        fallback: none

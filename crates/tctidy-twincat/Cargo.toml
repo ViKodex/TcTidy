@@ -1,0 +1,12 @@
+[package]
+name = "tctidy-twincat"
+description = "TwinCAT XML container layer: locate ST CDATA spans and splice formatted ST back."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+quick-xml.workspace = true
+memchr.workspace = true

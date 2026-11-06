@@ -1,0 +1,42 @@
+name: Dependabot auto-merge
+
+# Queues a squash merge for Dependabot's Cargo minor and patch updates. GitHub
+# merges them only once the required checks are green; other updates wait for review.
+on: pull_request
+
+permissions: {}
+
+jobs:
+  automerge:
+    name: Auto-merge
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Without protection on main there is no required check to wait for, and
+      # the merge would happen at once, so do nothing until main is protected.
+      - name: Check that main is protected
+        id: protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          protected=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .protected)
+          echo "protected=$protected" >> "$GITHUB_OUTPUT"
+          if [[ "$protected" != true ]]; then
+            echo "::notice::main is not protected, so the update is left for review."
+          fi
+      - id: metadata
+        if: steps.protection.outputs.protected == 'true'
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      - name: Merge once CI is green
+        if: >-
+          steps.protection.outputs.protected == 'true' &&
+          steps.metadata.outputs.package-ecosystem == 'cargo' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-patch')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"

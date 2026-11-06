@@ -1,0 +1,16 @@
+[package]
+name = "tctidy-pretty"
+description = "Generic pretty-printing IR and line-breaking engine. No language knowledge."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# Expose the S-expression debug renderer outside of tests.
+debug = []
+
+[dependencies]
+unicode-width.workspace = true
+smallvec.workspace = true
