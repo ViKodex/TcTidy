@@ -64,6 +64,9 @@ a Rust dependency also needs [cargo-about](https://github.com/EmbarkStudios/carg
   `Changed` or `Fixed`), written for users. A check reminds you if it is missing.
 - **Tests**: add a test that fails without your change (docs and tooling changes
   excepted).
+- **Trying the extension**: you need no local build. Once the checks pass, the Summary
+  page of the CI run links a [test installer](editors/vs/installer/README.md#test-builds)
+  for your pull request.
 - Tick **Allow edits from maintainers**, and push as many commits as you need: they are
   squashed into one on merge.
 
