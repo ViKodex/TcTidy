@@ -32,9 +32,10 @@ release.
 
 Release when `Unreleased` holds something worth shipping; there is no schedule.
 
-1. If the extension changed, you can first try it in TcXaeShell with a locally built
-   installer: `cargo xtask licenses generate`, then `build-vsix.ps1`, which also builds the
-   CLI it bundles, then `ISCC` with both payloads (see
+1. If the extension changed, you can first try it in TcXaeShell with the
+   [test installer](editors/vs/installer/README.md#test-builds) of the latest CI run on
+   `main`, or with a locally built installer: `cargo xtask licenses generate`, then
+   `build-vsix.ps1`, which also builds the CLI it bundles, then `ISCC` with both payloads (see
    [the installer README](editors/vs/installer/README.md#build)). The CI Windows job shows
    the steps, and also runs `test-installer.ps1`, whose security fixture asks for elevation.
 2. Prepare the release on a branch:

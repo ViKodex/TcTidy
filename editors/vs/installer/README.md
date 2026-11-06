@@ -89,3 +89,21 @@ the release-shaped payload and license inventory, payload ownership, uninstall c
 and foreign-file preservation without requiring TwinCAT on the CI runner. Finally it
 runs unattended installs over fixtures of both generations, with real uninstall records
 (`scripts/release/validate-installer-target.ps1`), to check which shell receives TcTidy.
+
+## Test builds
+
+Once its checks pass, the Windows job of every pull request and of every push to `main`
+publishes a real installer, for trying the change by hand in TcXaeShell. The link is on
+the Summary page of the CI run, and GitHub asks you to sign in to download it. It is kept
+for 14 days.
+
+Its version names where it comes from: `TcTidySetup-X.Y.Z-pr123-abc1234.exe` for pull
+request 123 at commit `abc1234`, and `TcTidySetup-X.Y.Z-main-abc1234.exe` for `main`. On a
+pull request, the build is that commit merged into its target branch, like the rest of
+the run.
+
+It installs like a release and replaces one of the same number. To go back, run the
+release's installer.
+
+A test build is not signed and setup runs as administrator. Pull requests can come from
+anyone, so install one only after reading its code.
