@@ -203,7 +203,8 @@ Distribution builds and CI use `scripts/release/build-vsix.ps1` to build the bun
 then restore, build, validate and extract both XAE 15 and 17 payloads with explicit
 product-version and Cargo evidence inputs. `scripts/release/test-installer.ps1` runs the shared discovery,
 security, upgrade and uninstall fixtures; the `Windows` job in `.github/workflows/ci.yml`
-shows the full sequence. Releases are described in
+shows the full sequence and publishes a
+[test installer](installer/README.md#test-builds). Releases are described in
 [MAINTAINING.md](../../MAINTAINING.md).
 
 The VSIX ships the project's `LICENSE-MIT` and `LICENSE-APACHE`, a short `LICENSE` that

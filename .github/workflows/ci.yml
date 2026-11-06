@@ -27,7 +27,7 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Verify release metadata
         run: cargo xtask release check
       - name: Verify generated keyword sources
@@ -61,7 +61,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build all targets
         run: cargo build --workspace --all-targets --locked
       - name: Test workspace
@@ -93,6 +93,54 @@ jobs:
           & ./scripts/release/test-installer.ps1 `
             -Payload15Directory installer-payload-xae15 `
             -Payload17Directory installer-payload-xae17
+      # A build to try by hand in TcXaeShell. These steps come last, so that only a build
+      # that passed every check above gets published.
+      - name: Build the test installer
+        id: test-installer
+        shell: pwsh
+        env:
+          PRODUCT_VERSION: ${{ steps.product-version.outputs.version }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # On a pull request github.sha is a merge commit that the pull request does not list.
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $channel = if ($env:PR_NUMBER) { "pr$env:PR_NUMBER" } else { 'main' }
+          $version = "$env:PRODUCT_VERSION-$channel-$($env:COMMIT.Substring(0, 7))"
+          $numeric = ($env:PRODUCT_VERSION -split '-')[0] + '.0'
+          $payload15 = (Resolve-Path -LiteralPath installer-payload-xae15).Path
+          $payload17 = (Resolve-Path -LiteralPath installer-payload-xae17).Path
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=$version" "/DNumericVersion=$numeric" `
+            "/DPayload15Dir=$payload15" "/DPayload17Dir=$payload17" `
+            editors/vs/installer/TcTidy.iss
+          if ($LASTEXITCODE -ne 0) { throw 'test installer build failed' }
+          "file=TcTidySetup-$version.exe" >> $env:GITHUB_OUTPUT
+      - name: Upload the test installer
+        id: upload-test-installer
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          # With archive: false the artifact takes the file's name, but overwrite deletes by
+          # this input. They must match for a re-run to replace its earlier upload.
+          name: ${{ steps.test-installer.outputs.file }}
+          path: editors/vs/installer/dist/${{ steps.test-installer.outputs.file }}
+          archive: false
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 14
+      - name: Link the test installer in the run summary
+        shell: pwsh
+        env:
+          FILE: ${{ steps.test-installer.outputs.file }}
+          URL: ${{ steps.upload-test-installer.outputs.artifact-url }}
+        run: |
+          @(
+            '### Test installer'
+            ''
+            "[$env:FILE]($env:URL) (sign in to GitHub to download it)"
+            ''
+            'It holds the code of this run, which nobody may have reviewed yet, and it is not'
+            'signed. Setup runs as administrator: install it only if you trust this code.'
+          ) >> $env:GITHUB_STEP_SUMMARY
 
   corpus:
     name: Corpus
@@ -102,7 +150,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # The projects and commits are pinned in xtask/public-corpus.txt.
       - name: Fetch the public corpus
         run: cargo xtask corpus fetch
