@@ -29,7 +29,7 @@ tctidy-twincat = { path = "crates/tctidy-twincat" }
 tctidy = { path = "crates/tctidy" }
 
 # --- syntax front-end ---
-rowan = "0.16"
+rowan = "0.17"
 logos = "0.14"
 num_enum = "0.7"
 text-size = "1"
