@@ -253,13 +253,18 @@ namespace TcTidy.VsExtension
     /// </summary>
     internal static class OpenDocFormatter
     {
-        public static BatchOutcome Format(DTE dte, IReadOnlyList<OpenItem> items, ITctidyRunner runner)
+        /// <summary>
+        /// The POUs are read and written on the UI thread; tctidy runs off it, so the IDE stays
+        /// responsive meanwhile.
+        /// </summary>
+        public static async System.Threading.Tasks.Task<BatchOutcome> FormatAsync(
+            DTE dte, IReadOnlyList<OpenItem> items, ITctidyRunner runner)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (items.Count == 0) return new BatchOutcome(0, 0, Array.Empty<FileFailure>());
 
             if (dte == null) throw new ArgumentNullException(nameof(dte));
-            return new OpenPouFormatter(runner).Format(items);
+            return await new OpenPouFormatter(runner).FormatAsync(items);
         }
     }
 }

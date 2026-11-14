@@ -232,8 +232,9 @@ A few choices are deliberate and worth knowing before changing them:
 - **Editor integration is a manual command.** Format-on-save is infeasible because
   the TwinCAT ST editor exposes no standard Visual Studio text buffer. The
   extension implements in-memory Automation Interface edits for open POUs and one
-  disk batch for closed files. The in-memory orchestration and transaction behavior
-  are covered off-shell.
+  disk batch for closed files. Both format off the UI thread, each in one `tctidy`
+  run; an open POU edited in the meantime is left untouched. The in-memory
+  orchestration and transaction behavior are covered off-shell.
 
 ## Building
 

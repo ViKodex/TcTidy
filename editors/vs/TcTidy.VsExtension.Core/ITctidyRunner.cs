@@ -9,16 +9,14 @@ namespace TcTidy.VsExtension.Core
     public interface ITctidyRunner
     {
         /// <summary>
-        /// Format raw ST text via stdin/stdout (<c>tctidy - [--decl|--impl]</c>) and return
-        /// the formatted text. Throws <see cref="FormatterException"/> (ExitCode 3) on a
-        /// parse/format error, in which case the caller keeps the original text.
+        /// Format several raw ST sections in a single tctidy invocation (one request on stdin, one
+        /// response on stdout, <c>tctidy --stdin-sections</c>), amortizing process startup across
+        /// all of them. Returns one result per section, in order: the formatted text, or the
+        /// diagnostic of a section tctidy refused, which does not stop the others. Throws
+        /// <see cref="FormatterException"/> when the run gives no results (tctidy could not be
+        /// started, timed out, or did not answer); nothing was formatted then.
         /// </summary>
-        /// <param name="sourcePath">
-        /// The file the text comes from, when known. tctidy then formats it with the
-        /// <c>.tctidy.toml</c> that applies to that file (<c>--stdin-filepath</c>), exactly as it
-        /// would format the file on disk.
-        /// </param>
-        string FormatText(string source, StSection section, string? sourcePath = null);
+        IReadOnlyList<SectionResult> FormatSections(IReadOnlyList<SectionRequest> sections);
 
         /// <summary>
         /// Format a whole TwinCAT XML document (e.g. the XML the Automation Interface's

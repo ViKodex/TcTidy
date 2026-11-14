@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `logical_expression_layout = "expanded_branches"`, inside a parenthesized
   branch of an `OR` or `XOR` chain, and the expression around it wraps with it.
   Such a statement used to stay on one line, even beyond `line_width`.
+- Extension: *Format with TcTidy* no longer freezes the XAE Shell while it
+  formats the POUs open in the editor. Their sections are formatted in the
+  background, in one `tctidy` run where each section used to start its own.
+  A POU you edit while it is being formatted is left untouched and reported.
 
 ## [0.5.0] - 2026-11-06
 

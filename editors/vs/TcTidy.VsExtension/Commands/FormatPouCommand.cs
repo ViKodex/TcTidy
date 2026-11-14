@@ -28,6 +28,18 @@ namespace TcTidy.VsExtension
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
+            if (!FormatSupport.TryBeginRun())
+            {
+                await FormatSupport.ShowRunInProgressAsync();
+                return;
+            }
+
+            try { await FormatAsync(); }
+            finally { FormatSupport.EndRun(); }
+        }
+
+        private static async Task FormatAsync()
+        {
             // Test mode only: capture the wall-clock of each phase. `total` spans the whole command;
             // `sw` is reused per phase.
             var perf = PerfMode.Enabled ? new PerfReport() : null;
@@ -79,15 +91,16 @@ namespace TcTidy.VsExtension
             var runner = new TctidyRunner(
                 exe, TimeSpan.FromSeconds(60 + targets.Count * 0.2), FormatSupport.SolutionDirectory(dte));
 
-            // Open docs go first, in memory via the Automation Interface (UI thread, COM access); the
-            // closed files then go to the single-spawn disk batch, off the UI thread. The Core run shows
+            // Open docs go first, in memory via the Automation Interface: read and written on the UI
+            // thread (COM access), formatted off it in one tctidy run. The closed files then go to the
+            // single-spawn disk batch, off the UI thread. The Core run shows
             // the status-bar feedback, turns a phase that throws into failures of that phase's targets
             // (keeping the other phase's results), always stops the spinner, and returns the one result
             // reported below.
             var result = await ProjectFormatRun.ExecuteAsync(
                 FormatSupport.RunProgress,
                 apiItems.Select(item => item.Name).ToList(),
-                () => OpenDocFormatter.Format(dte, apiItems, runner),
+                () => OpenDocFormatter.FormatAsync(dte, apiItems, runner),
                 diskTargets,
                 () => Task.Run(() => new DiskBatchStrategy(runner).FormatAll(diskTargets)));
 

@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace TcTidy.VsExtension.Core
 {
@@ -21,9 +22,9 @@ namespace TcTidy.VsExtension.Core
         private readonly string? _workingDirectory;
 
         /// <param name="workingDirectory">
-        /// Where tctidy runs. Text formatted through stdin without a source path uses the
+        /// Where tctidy runs. A section formatted without a source path uses the
         /// <c>.tctidy.toml</c> found from this directory, so pass the solution directory; files on
-        /// disk, and text with a source path, use the one that applies to their file. <c>null</c>
+        /// disk, and sections with a source path, use the one that applies to their file. <c>null</c>
         /// keeps the caller's current directory (Visual Studio's own, never the solution's).
         /// </param>
         public TctidyRunner(string exePath, TimeSpan timeout, string? workingDirectory = null)
@@ -33,18 +34,19 @@ namespace TcTidy.VsExtension.Core
             _workingDirectory = workingDirectory;
         }
 
-        public string FormatText(string source, StSection section, string? sourcePath = null)
+        public IReadOnlyList<SectionResult> FormatSections(IReadOnlyList<SectionRequest> sections)
         {
-            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (sections == null) throw new ArgumentNullException(nameof(sections));
+            if (sections.Count == 0) return Array.Empty<SectionResult>();
 
-            var args = "-";
-            if (section == StSection.Declaration) args += " --decl";
-            else if (section == StSection.Implementation) args += " --impl";
-            if (!string.IsNullOrEmpty(sourcePath)) args += " --stdin-filepath " + CommandLine.Quote(sourcePath!);
+            var (exitCode, stdout, stderr) = Run("--stdin-sections", SectionsProtocol.Request(sections));
 
-            var (exitCode, stdout, stderr) = Run(args, source);
-            if (exitCode == 0) return stdout;
-            throw new FormatterException(exitCode, Describe(stderr, stdout));
+            // tctidy answers every request it could read, whatever its exit code: a section it
+            // refused carries its own diagnostic. Anything else is a run that gave no results.
+            var results = SectionsProtocol.Results(stdout);
+            if (results == null || results.Count != sections.Count)
+                throw new FormatterException(exitCode, Describe(stderr, string.Empty));
+            return results;
         }
 
         public string FormatXml(string xml)
@@ -167,14 +169,12 @@ namespace TcTidy.VsExtension.Core
                 throw new FormatterException(-1, $"could not start tctidy ('{_exePath}'): {e.Message}");
             }
 
-            // Write stdin as UTF-8 without a BOM (writing to BaseStream avoids the
-            // console encoding adding one), then close it so tctidy sees EOF.
+            // Write stdin apart from this thread, so the timeout below also covers a tctidy that
+            // does not read it.
             if (stdin != null)
             {
-                var bytes = Utf8NoBom.GetBytes(stdin);
-                process.StandardInput.BaseStream.Write(bytes, 0, bytes.Length);
-                process.StandardInput.BaseStream.Flush();
-                process.StandardInput.Close();
+                var input = process.StandardInput;
+                Task.Run(() => WriteAndClose(input, stdin));
             }
 
             // Read both pipes asynchronously to avoid a full-buffer deadlock.
@@ -190,6 +190,24 @@ namespace TcTidy.VsExtension.Core
             process.WaitForExit(); // let the async readers drain after exit
 
             return (process.ExitCode, stdoutTask.GetAwaiter().GetResult(), stderrTask.GetAwaiter().GetResult());
+        }
+
+        // Write stdin as UTF-8 without a BOM (writing to BaseStream avoids the console encoding
+        // adding one), then close it so tctidy sees EOF.
+        private static void WriteAndClose(StreamWriter input, string stdin)
+        {
+            var bytes = Utf8NoBom.GetBytes(stdin);
+            try
+            {
+                input.BaseStream.Write(bytes, 0, bytes.Length);
+                input.BaseStream.Flush();
+                input.Close();
+            }
+            catch (Exception e) when (e is IOException || e is ObjectDisposedException)
+            {
+                // tctidy exited, or was stopped, without reading it all: its exit code and stderr,
+                // or the timeout, say why.
+            }
         }
 
         private static string Describe(string stderr, string stdout)

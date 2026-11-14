@@ -15,7 +15,7 @@ namespace TcTidy.VsExtension.Core
     /// unit-tested without Visual Studio.
     /// <para>
     /// Every await resumes on the caller's context (no <c>ConfigureAwait(false)</c>): the open phase
-    /// touches COM and must run on the UI thread the command is on.
+    /// touches COM and must start, and resume, on the UI thread the command is on.
     /// </para>
     /// </summary>
     public static class ProjectFormatRun
@@ -27,7 +27,7 @@ namespace TcTidy.VsExtension.Core
         /// <param name="formatDisk">Formats the closed files; called only when there are some.</param>
         public static async Task<ProjectFormatResult> ExecuteAsync(
             IRunProgress progress,
-            IReadOnlyList<string> openPous, Func<BatchOutcome> formatOpen,
+            IReadOnlyList<string> openPous, Func<Task<BatchOutcome>> formatOpen,
             IReadOnlyList<string> diskFiles, Func<Task<BatchOutcome>> formatDisk)
         {
             if (progress == null) throw new ArgumentNullException(nameof(progress));
@@ -48,7 +48,7 @@ namespace TcTidy.VsExtension.Core
                 {
                     await QuietlyAsync(() => progress.OpenPhaseAsync(openPous.Count));
                     var sw = Stopwatch.StartNew();
-                    try { open = formatOpen(); }
+                    try { open = await formatOpen(); }
                     catch (Exception ex) { open = Failed(openPous, "open POU formatting", ex); }
                     openElapsed = sw.Elapsed;
                 }
