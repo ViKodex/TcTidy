@@ -21,9 +21,9 @@ namespace TcTidy.VsExtension.Core
         private readonly string? _workingDirectory;
 
         /// <param name="workingDirectory">
-        /// Where tctidy runs. Text formatted through stdin without a source path uses the
+        /// Where tctidy runs. A section formatted without a source path uses the
         /// <c>.tctidy.toml</c> found from this directory, so pass the solution directory; files on
-        /// disk, and text with a source path, use the one that applies to their file. <c>null</c>
+        /// disk, and sections with a source path, use the one that applies to their file. <c>null</c>
         /// keeps the caller's current directory (Visual Studio's own, never the solution's).
         /// </param>
         public TctidyRunner(string exePath, TimeSpan timeout, string? workingDirectory = null)
@@ -33,18 +33,19 @@ namespace TcTidy.VsExtension.Core
             _workingDirectory = workingDirectory;
         }
 
-        public string FormatText(string source, StSection section, string? sourcePath = null)
+        public IReadOnlyList<SectionResult> FormatSections(IReadOnlyList<SectionRequest> sections)
         {
-            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (sections == null) throw new ArgumentNullException(nameof(sections));
+            if (sections.Count == 0) return Array.Empty<SectionResult>();
 
-            var args = "-";
-            if (section == StSection.Declaration) args += " --decl";
-            else if (section == StSection.Implementation) args += " --impl";
-            if (!string.IsNullOrEmpty(sourcePath)) args += " --stdin-filepath " + CommandLine.Quote(sourcePath!);
+            var (exitCode, stdout, stderr) = Run("--stdin-sections", SectionsProtocol.Request(sections));
 
-            var (exitCode, stdout, stderr) = Run(args, source);
-            if (exitCode == 0) return stdout;
-            throw new FormatterException(exitCode, Describe(stderr, stdout));
+            // tctidy answers every request it could read, whatever its exit code: a section it
+            // refused carries its own diagnostic. Anything else is a run that gave no results.
+            var results = SectionsProtocol.Results(stdout);
+            if (results == null || results.Count != sections.Count)
+                throw new FormatterException(exitCode, Describe(stderr, string.Empty));
+            return results;
         }
 
         public string FormatXml(string xml)
@@ -172,9 +173,16 @@ namespace TcTidy.VsExtension.Core
             if (stdin != null)
             {
                 var bytes = Utf8NoBom.GetBytes(stdin);
-                process.StandardInput.BaseStream.Write(bytes, 0, bytes.Length);
-                process.StandardInput.BaseStream.Flush();
-                process.StandardInput.Close();
+                try
+                {
+                    process.StandardInput.BaseStream.Write(bytes, 0, bytes.Length);
+                    process.StandardInput.BaseStream.Flush();
+                    process.StandardInput.Close();
+                }
+                catch (IOException)
+                {
+                    // tctidy exited without reading it all: its exit code and stderr say why.
+                }
             }
 
             // Read both pipes asynchronously to avoid a full-buffer deadlock.

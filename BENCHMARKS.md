@@ -42,8 +42,8 @@ trivia module is private and there is no `Doc`-returning seam to time them apart
 ### Per-file process cost / cold start (`hyperfine`)
 
 `criterion` times the formatter in-process. It cannot see the per-file process cost
-(launching `tctidy` **once per file**) that pre-commit and the extension's open-document
-path pay, and that the extension's `Disk batch` amortizes into a single spawn.
+(launching `tctidy` **once per file**) that pre-commit pays, and that the extension
+amortizes into one spawn for the open POUs and one for its `Disk batch`.
 
 ```sh
 cargo install hyperfine          # one-time

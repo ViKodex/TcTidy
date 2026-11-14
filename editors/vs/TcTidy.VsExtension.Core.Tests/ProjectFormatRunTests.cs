@@ -24,7 +24,7 @@ namespace TcTidy.VsExtension.Core.Tests
 
             var result = await ProjectFormatRun.ExecuteAsync(
                 progress,
-                OpenPous, () => new BatchOutcome(1, 1, Array.Empty<FileFailure>()),
+                OpenPous, () => Task.FromResult(new BatchOutcome(1, 1, Array.Empty<FileFailure>())),
                 DiskFiles, () => throw new FormatterException(-1, "could not start tctidy ('x'): not found"));
 
             Assert.Equal(new[] { "start 4", "open 2", "disk 2", "end" }, progress.Calls);
@@ -42,7 +42,7 @@ namespace TcTidy.VsExtension.Core.Tests
 
             var result = await ProjectFormatRun.ExecuteAsync(
                 progress,
-                OpenPous, () => new BatchOutcome(2, 0, Array.Empty<FileFailure>()),
+                OpenPous, () => Task.FromResult(new BatchOutcome(2, 0, Array.Empty<FileFailure>())),
                 DiskFiles, async () =>
                 {
                     await Task.Yield();
@@ -75,13 +75,33 @@ namespace TcTidy.VsExtension.Core.Tests
         }
 
         [Fact]
+        public async Task An_open_phase_that_faults_later_is_reported_the_same_way()
+        {
+            var progress = new RecordingProgress();
+
+            var result = await ProjectFormatRun.ExecuteAsync(
+                progress,
+                OpenPous, async () =>
+                {
+                    await Task.Yield();
+                    throw new InvalidOperationException("COM boom");
+                },
+                DiskFiles, () => Task.FromResult(new BatchOutcome(2, 0, Array.Empty<FileFailure>())));
+
+            Assert.Equal("end", progress.Calls.Last());
+            Assert.Equal(2, result.Disk.Changed);
+            Assert.Equal(OpenPous, result.Open.Failures.Select(f => f.Source));
+            Assert.All(result.Open.Failures, f => Assert.Contains("COM boom", f.Message));
+        }
+
+        [Fact]
         public async Task Progress_that_throws_neither_stops_the_run_nor_skips_the_end()
         {
             var progress = new RecordingProgress { ThrowOnUpdates = true };
 
             var result = await ProjectFormatRun.ExecuteAsync(
                 progress,
-                OpenPous, () => new BatchOutcome(2, 0, Array.Empty<FileFailure>()),
+                OpenPous, () => Task.FromResult(new BatchOutcome(2, 0, Array.Empty<FileFailure>())),
                 DiskFiles, () => Task.FromResult(new BatchOutcome(1, 1, Array.Empty<FileFailure>())));
 
             Assert.Equal(1, progress.Calls.Count(c => c == "end"));
@@ -96,7 +116,7 @@ namespace TcTidy.VsExtension.Core.Tests
 
             var result = await ProjectFormatRun.ExecuteAsync(
                 progress,
-                Array.Empty<string>(), () => { openRan = true; return new BatchOutcome(0, 0, Array.Empty<FileFailure>()); },
+                Array.Empty<string>(), () => { openRan = true; return Task.FromResult(new BatchOutcome(0, 0, Array.Empty<FileFailure>())); },
                 DiskFiles, () => Task.FromResult(new BatchOutcome(0, 2, Array.Empty<FileFailure>())));
 
             Assert.False(openRan);

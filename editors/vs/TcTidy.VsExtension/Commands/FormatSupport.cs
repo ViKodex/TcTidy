@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Community.VisualStudio.Toolkit;
 using EnvDTE;
 using Microsoft.VisualStudio.Shell;
@@ -13,11 +14,25 @@ namespace TcTidy.VsExtension
     /// <summary>
     /// Bits shared by the two "Format with TcTidy" commands, the tree-launched
     /// <see cref="FormatPouCommand"/> (whole POU, recursive) and the editor-launched
-    /// <see cref="FormatElementCommand"/> (the open element alone): locating <c>tctidy.exe</c> and
-    /// reporting a finished run.
+    /// <see cref="FormatElementCommand"/> (the open element alone): locating <c>tctidy.exe</c>,
+    /// allowing one run at a time and reporting a finished run.
     /// </summary>
     internal static class FormatSupport
     {
+        private static int _running;
+
+        /// <summary>
+        /// Claim the one format run allowed at a time; false when a run is in flight. The IDE stays
+        /// usable while tctidy works, so a command can be invoked again before its run has ended.
+        /// Pair a claim with <see cref="EndRun"/>.
+        /// </summary>
+        public static bool TryBeginRun() => Interlocked.CompareExchange(ref _running, 1, 0) == 0;
+
+        public static void EndRun() => Interlocked.Exchange(ref _running, 0);
+
+        public static async Task ShowRunInProgressAsync() =>
+            await VS.StatusBar.ShowMessageAsync("TcTidy: a format run is already in progress.");
+
         /// <summary>
         /// Locate <c>tctidy.exe</c> next to the extension (installer payload) with a <c>PATH</c> fallback,
         /// via the tested <see cref="TctidyLocator"/>. Returns null when it cannot be found.

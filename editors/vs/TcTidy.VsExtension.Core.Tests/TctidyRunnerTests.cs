@@ -27,71 +27,165 @@ namespace TcTidy.VsExtension.Core.Tests
             new TctidyRunner(TctidyPath(), TimeSpan.FromSeconds(10));
 
         [Fact]
-        public void FormatText_formats_an_implementation_assignment()
+        public void FormatSections_formats_each_section_with_its_own_grammar_in_order()
         {
-            var output = Runner().FormatText("x:=1;", StSection.Implementation);
-            Assert.Equal("x := 1;", output.TrimEnd('\r', '\n'));
+            var results = Runner().FormatSections(new[]
+            {
+                new SectionRequest("x:=1;", StSection.Implementation),
+                new SectionRequest("VAR\na:INT;\nEND_VAR", StSection.Declaration),
+                new SectionRequest("y:=2;", StSection.Auto),
+            });
+
+            Assert.Equal(
+                new[] { "x := 1;", "VAR\n    a : INT;\nEND_VAR", "y := 2;" },
+                results.Select(r => r.Output));
+            Assert.All(results, r => Assert.Null(r.Error));
         }
 
         [Fact]
-        public void FormatText_formats_a_declaration()
+        public void FormatSections_returns_the_text_exactly_as_tctidy_formats_it()
         {
-            var output = Runner().FormatText("VAR\na:INT;\nEND_VAR", StSection.Declaration);
-            Assert.Contains("a : INT;", output);
+            // CRLF line endings, the final newline, quotes, backslashes and non-ASCII text (a
+            // surrogate pair included) all cross the exchange with tctidy unchanged.
+            const string formatted = "x := 1;\r\nsPath := 'C:\\Temp\\\"é\"'; // ° µ 日本 😀\r\n";
+
+            var result = Assert.Single(Runner().FormatSections(new[]
+            {
+                new SectionRequest(formatted.Replace("x := 1;", "x:=1;"), StSection.Implementation),
+            }));
+
+            Assert.Equal(formatted, result.Output);
         }
 
         [Fact]
-        public void FormatText_preserves_crlf_line_endings()
-        {
-            var output = Runner().FormatText(
-                "x:=1;\r\nIF a THEN\r\nb:=2;\r\nEND_IF", StSection.Implementation);
-            Assert.Contains("\r\n", output);
-        }
-
-        [Fact]
-        public void FormatText_uses_the_config_of_the_source_file()
+        public void FormatSections_uses_the_config_of_each_source_file()
         {
             // VS runs tctidy from its own directory; the POU's path is what finds the solution's file.
-            var solution = Path.Combine(Path.GetTempPath(), $"tctidy-sln-{Guid.NewGuid():N}");
+            var solution = NewTempDirectory();
             var plc = Path.Combine(solution, "Plc", "POUs");
             Directory.CreateDirectory(plc);
             try
             {
                 File.WriteAllText(Path.Combine(solution, ".tctidy.toml"), "keyword_case = \"lower\"\n");
                 var pou = Path.Combine(plc, "FB_Unsaved.TcPOU"); // need not exist
+                const string source = "IF a THEN\nb:=1;\nEND_IF";
 
-                var output = Runner().FormatText("IF a THEN\nb:=1;\nEND_IF", StSection.Implementation, pou);
+                var results = Runner().FormatSections(new[]
+                {
+                    new SectionRequest(source, StSection.Implementation, pou),
+                    new SectionRequest(source, StSection.Implementation),
+                });
 
-                Assert.StartsWith("if a then", output);
-                Assert.StartsWith("IF a THEN", Runner().FormatText("IF a THEN\nb:=1;\nEND_IF", StSection.Implementation));
+                Assert.StartsWith("if a then", results[0].Output);
+                Assert.StartsWith("IF a THEN", results[1].Output);
             }
             finally { Directory.Delete(solution, recursive: true); }
         }
 
         [Fact]
-        public void FormatText_without_a_source_path_uses_the_working_directory_config()
+        public void FormatSections_without_a_source_path_uses_the_working_directory_config()
         {
-            var solution = Path.Combine(Path.GetTempPath(), $"tctidy-sln-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(solution);
+            var solution = NewTempDirectory();
             try
             {
                 File.WriteAllText(Path.Combine(solution, ".tctidy.toml"), "indent_width = 2\n");
                 var runner = new TctidyRunner(TctidyPath(), TimeSpan.FromSeconds(10), solution);
 
-                var output = runner.FormatText("IF a THEN\nb:=1;\nEND_IF", StSection.Implementation);
+                var result = Assert.Single(runner.FormatSections(new[]
+                {
+                    new SectionRequest("IF a THEN\nb:=1;\nEND_IF", StSection.Implementation),
+                }));
 
-                Assert.Contains("\n  b := 1;", output);
+                Assert.Contains("\n  b := 1;", result.Output);
             }
             finally { Directory.Delete(solution, recursive: true); }
         }
 
         [Fact]
-        public void FormatText_throws_with_exit_code_3_on_parse_error()
+        public void FormatSections_reports_a_refused_section_without_stopping_the_others()
         {
-            // A Unicode identifier the lexer rejects → tctidy refuses (exit 3).
-            var ex = Assert.Throws<FormatterException>(
-                () => Runner().FormatText("café : INT;", StSection.Declaration));
-            Assert.Equal(3, ex.ExitCode);
+            // A Unicode identifier the lexer rejects: tctidy refuses that section (exit 3) only.
+            var results = Runner().FormatSections(new[]
+            {
+                new SectionRequest("x:=1;", StSection.Implementation),
+                new SectionRequest("café : INT;", StSection.Declaration),
+                new SectionRequest("y:=2;", StSection.Implementation),
+            });
+
+            Assert.Equal("x := 1;", results[0].Output);
+            Assert.Null(results[1].Output);
+            Assert.Contains("parse error in declaration", results[1].Error);
+            Assert.Equal("y := 2;", results[2].Output);
+        }
+
+        [Fact]
+        public void FormatSections_reports_an_invalid_config_on_the_sections_it_covers()
+        {
+            var root = NewTempDirectory();
+            var broken = Path.Combine(root, "Broken");
+            Directory.CreateDirectory(broken);
+            File.WriteAllText(Path.Combine(broken, ".tctidy.toml"), "bogus_option = 1\n");
+            try
+            {
+                var results = Runner().FormatSections(new[]
+                {
+                    new SectionRequest("x:=1;", StSection.Implementation, Path.Combine(broken, "FB_A.TcPOU")),
+                    new SectionRequest("y:=2;", StSection.Implementation, Path.Combine(root, "FB_B.TcPOU")),
+                });
+
+                Assert.Null(results[0].Output);
+                Assert.Contains("unknown option", results[0].Error);
+                Assert.Equal("y := 2;", results[1].Output);
+            }
+            finally { Directory.Delete(root, recursive: true); }
+        }
+
+        [Fact]
+        public void FormatSections_handles_a_large_batch_in_one_spawn()
+        {
+            // Several megabytes each way, far beyond a pipe's buffer.
+            var body = new System.Text.StringBuilder();
+            for (var i = 0; i < 100; i++) body.Append("nValue").Append(i).Append(":=").Append(i).Append(";\r\n");
+            var sections = Enumerable.Range(0, 2_000)
+                .Select(_ => new SectionRequest(body.ToString(), StSection.Implementation))
+                .ToList();
+
+            var results = new TctidyRunner(TctidyPath(), TimeSpan.FromSeconds(60)).FormatSections(sections);
+
+            Assert.Equal(sections.Count, results.Count);
+            Assert.All(results, r => Assert.Equal(body.ToString().Replace(":=", " := "), r.Output));
+        }
+
+        [Fact]
+        public void FormatSections_throws_on_a_timeout()
+        {
+            var body = new System.Text.StringBuilder(capacity: 1_600_000);
+            for (var i = 0; i < 200_000; i++) body.Append("x:=1;\r\n");
+            var runner = new TctidyRunner(TctidyPath(), TimeSpan.FromMilliseconds(1));
+
+            var ex = Assert.Throws<FormatterException>(() => runner.FormatSections(new[]
+            {
+                new SectionRequest(body.ToString(), StSection.Implementation),
+            }));
+
+            Assert.Equal(-1, ex.ExitCode);
+            Assert.Contains("timed out", ex.Message);
+        }
+
+        [Fact]
+        public void FormatSections_throws_when_tctidy_cannot_start()
+        {
+            var runner = new TctidyRunner(
+                Path.Combine(Path.GetTempPath(), "tctidy-does-not-exist"), TimeSpan.FromSeconds(5));
+
+            var ex = Assert.Throws<FormatterException>(() => runner.FormatSections(new[]
+            {
+                new SectionRequest("x:=1;", StSection.Implementation),
+            }));
+
+            Assert.Contains("could not start tctidy", ex.Message);
+            // Nothing to format needs no tctidy at all.
+            Assert.Empty(runner.FormatSections(Array.Empty<SectionRequest>()));
         }
 
         [Fact]
@@ -459,16 +553,6 @@ namespace TcTidy.VsExtension.Core.Tests
                 Assert.Equal(before, File.ReadAllBytes(path));
             }
             finally { File.Delete(path); }
-        }
-
-        [Fact]
-        public void Missing_binary_throws()
-        {
-            var runner = new TctidyRunner(
-                Path.Combine(Path.GetTempPath(), "tctidy-does-not-exist"),
-                TimeSpan.FromSeconds(5));
-            Assert.ThrowsAny<Exception>(
-                () => runner.FormatText("x:=1;", StSection.Implementation));
         }
 
         private static string NewTempFile(string extension, string content)

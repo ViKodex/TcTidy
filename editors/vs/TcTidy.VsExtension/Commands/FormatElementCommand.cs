@@ -25,6 +25,18 @@ namespace TcTidy.VsExtension
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
+            if (!FormatSupport.TryBeginRun())
+            {
+                await FormatSupport.ShowRunInProgressAsync();
+                return;
+            }
+
+            try { await FormatAsync(); }
+            finally { FormatSupport.EndRun(); }
+        }
+
+        private static async Task FormatAsync()
+        {
             var exe = FormatSupport.LocateExe();
             if (exe == null)
             {
@@ -46,7 +58,17 @@ namespace TcTidy.VsExtension
             var openItem = new OpenItem(
                 item, treeItem, document, dte, recurse: false, SourceFiles.QualifiedName(item),
                 SourceFiles.FilePath(item));
-            var outcome = OpenDocFormatter.Format(dte, new List<OpenItem> { openItem }, runner);
+            BatchOutcome outcome;
+            try
+            {
+                outcome = await OpenDocFormatter.FormatAsync(dte, new List<OpenItem> { openItem }, runner);
+            }
+            catch (Exception ex)
+            {
+                // Not a failure the formatter reports by itself: still end in a report, not in silence.
+                outcome = new BatchOutcome(
+                    0, 0, new[] { new FileFailure(openItem.Name, Com.ErrorMessage(ex)) });
+            }
 
             await FormatSupport.ReportAsync(
                 outcome.Changed, outcome.Unchanged, outcome.Failures, apiCount: 1, diskCount: 0);

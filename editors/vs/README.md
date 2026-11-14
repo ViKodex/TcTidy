@@ -21,11 +21,13 @@ files that are **not** open are formatted on disk in a single batched `tctidy` r
   to its `.TcPOU`/`.TcGVL`/`.TcDUT`/`.TcIO` files (recursing folders and PLC projects).
   Each open POU is formatted in memory with **its methods, actions and properties**, as a
   single undo step with no reload prompt; closed files are formatted on disk in one
-  `tctidy --files-from -` batch off the UI thread. From **inside a code editor**, only the
-  open element (the POU body, or one method, action or property accessor) is formatted,
-  never its siblings. Either way the open buffer is saved first, so unsaved on-screen
-  edits are what gets formatted, and an element's declaration and implementation are
-  always done together.
+  `tctidy --files-from -` batch off the UI thread. The open POUs are formatted off the UI
+  thread too, all their sections in one `tctidy` run, so the shell stays responsive; a POU
+  edited in the meantime is left untouched and reported. From **inside a code editor**,
+  only the open element (the POU body, or one method, action or property accessor) is
+  formatted, never its siblings. Either way the open buffer is saved first, so unsaved
+  on-screen edits are what gets formatted, and an element's declaration and implementation
+  are always done together.
 - **Error reporting**: a parse or format error leaves that file untouched and is reported
   without aborting the batch. A project-wide run shows progress and writes a per-file
   changed/unchanged/failed summary, with each failure's ST section and line, to the
