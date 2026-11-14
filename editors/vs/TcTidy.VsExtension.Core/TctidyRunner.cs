@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace TcTidy.VsExtension.Core
 {
@@ -168,21 +169,12 @@ namespace TcTidy.VsExtension.Core
                 throw new FormatterException(-1, $"could not start tctidy ('{_exePath}'): {e.Message}");
             }
 
-            // Write stdin as UTF-8 without a BOM (writing to BaseStream avoids the
-            // console encoding adding one), then close it so tctidy sees EOF.
+            // Write stdin apart from this thread, so the timeout below also covers a tctidy that
+            // does not read it.
             if (stdin != null)
             {
-                var bytes = Utf8NoBom.GetBytes(stdin);
-                try
-                {
-                    process.StandardInput.BaseStream.Write(bytes, 0, bytes.Length);
-                    process.StandardInput.BaseStream.Flush();
-                    process.StandardInput.Close();
-                }
-                catch (IOException)
-                {
-                    // tctidy exited without reading it all: its exit code and stderr say why.
-                }
+                var input = process.StandardInput;
+                Task.Run(() => WriteAndClose(input, stdin));
             }
 
             // Read both pipes asynchronously to avoid a full-buffer deadlock.
@@ -198,6 +190,24 @@ namespace TcTidy.VsExtension.Core
             process.WaitForExit(); // let the async readers drain after exit
 
             return (process.ExitCode, stdoutTask.GetAwaiter().GetResult(), stderrTask.GetAwaiter().GetResult());
+        }
+
+        // Write stdin as UTF-8 without a BOM (writing to BaseStream avoids the console encoding
+        // adding one), then close it so tctidy sees EOF.
+        private static void WriteAndClose(StreamWriter input, string stdin)
+        {
+            var bytes = Utf8NoBom.GetBytes(stdin);
+            try
+            {
+                input.BaseStream.Write(bytes, 0, bytes.Length);
+                input.BaseStream.Flush();
+                input.Close();
+            }
+            catch (Exception e) when (e is IOException || e is ObjectDisposedException)
+            {
+                // tctidy exited, or was stopped, without reading it all: its exit code and stderr,
+                // or the timeout, say why.
+            }
         }
 
         private static string Describe(string stderr, string stdout)

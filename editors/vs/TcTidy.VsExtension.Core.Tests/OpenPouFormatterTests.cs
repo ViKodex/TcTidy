@@ -388,6 +388,26 @@ namespace TcTidy.VsExtension.Core.Tests
             Assert.All(pous, pou => Assert.Equal(0, pou.SaveCount));
         }
 
+        [Fact]
+        public async Task A_tctidy_run_without_a_result_per_section_writes_nothing()
+        {
+            var pous = new[]
+            {
+                new FakeOpenPou("FB_A", ChangedSections()),
+                new FakeOpenPou("FB_B", ChangedSections()),
+            };
+            var runner = new FakeRunner { MissingResults = 1 };
+
+            var outcome = await Format(runner, pous);
+
+            Assert.Equal(0, outcome.Changed);
+            Assert.Equal(new[] { "FB_A", "FB_B" }, outcome.Failures.Select(f => f.Source));
+            Assert.All(
+                outcome.Failures,
+                f => Assert.Equal("tctidy did not return one result per section", f.Message));
+            Assert.All(pous, pou => Assert.Equal(0, pou.BeginEditCount));
+        }
+
         private static FakeStSection[] ChangedSections() => new[]
         {
             new FakeStSection(
@@ -423,6 +443,9 @@ namespace TcTidy.VsExtension.Core.Tests
             /// <summary>When set, a run throws it (tctidy could not start, timed out).</summary>
             public FormatterException? Error { get; set; }
 
+            /// <summary>How many results a run leaves out, from the end.</summary>
+            public int MissingResults { get; set; }
+
             public IReadOnlyList<SectionResult> FormatSections(IReadOnlyList<SectionRequest> sections)
             {
                 Runs.Add(sections);
@@ -433,6 +456,7 @@ namespace TcTidy.VsExtension.Core.Tests
                     .Select(section => section.Source.Contains("café")
                         ? SectionResult.Refused("1:1: parse error")
                         : SectionResult.Formatted(Regex.Replace(section.Source, @"\s*:=\s*", " := ")))
+                    .Take(sections.Count - MissingResults)
                     .ToList();
             }
 

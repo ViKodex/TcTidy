@@ -6,7 +6,7 @@
 //! per section, in the request's order:
 //!
 //! ```text
-//! {"sections":[{"source":"x:=1;","declaration":false,"filepath":"C:\Plc\FB_X.TcPOU"}]}
+//! {"sections":[{"source":"x:=1;","declaration":false,"filepath":"C:\\Plc\\FB_X.TcPOU"}]}
 //! {"results":[{"output":"x := 1;"}]}
 //! ```
 //!
@@ -53,10 +53,10 @@ enum Outcome {
     Error(String),
 }
 
-/// Read the request from stdin and write the response to stdout. An unreadable
-/// request is a usage error (exit 2) and writes nothing; otherwise the response
-/// is complete, and the exit code is the most severe status of its sections (an
-/// invalid configuration 2, a section that failed to format 3).
+/// Read the request from stdin and write the response to stdout. A request that
+/// is not valid is a usage error (exit 2) and writes nothing; otherwise the
+/// response is complete, and the exit code is the most severe status of its
+/// sections (an invalid configuration 2, a section that failed to format 3).
 pub fn run(configs: &mut ConfigResolver) -> ExitCode {
     let mut bytes = Vec::new();
     if let Err(e) = std::io::stdin().read_to_end(&mut bytes) {

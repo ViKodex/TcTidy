@@ -49,6 +49,8 @@ namespace TcTidy.VsExtension.Core
                 try
                 {
                     results = await Task.Run(() => _runner.FormatSections(requests));
+                    if (results.Count != requests.Count)
+                        throw new FormatterException(-1, "tctidy did not return one result per section");
                 }
                 catch (FormatterException ex)
                 {

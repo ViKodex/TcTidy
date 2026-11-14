@@ -173,6 +173,30 @@ namespace TcTidy.VsExtension.Core.Tests
         }
 
         [Fact]
+        public void FormatSections_times_out_when_tctidy_never_reads_its_input()
+        {
+            // The request is larger than a pipe's buffer, so it cannot be written in full to a
+            // process that does not read it: the timeout has to cover the write too.
+            var dir = NewTempDirectory();
+            try
+            {
+                var runner = new TctidyRunner(StalledTctidy(dir), TimeSpan.FromMilliseconds(500));
+
+                var ex = Assert.Throws<FormatterException>(() => runner.FormatSections(new[]
+                {
+                    new SectionRequest(new string('x', 1_000_000), StSection.Implementation),
+                }));
+
+                Assert.Contains("timed out", ex.Message);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, recursive: true); }
+                catch (IOException) { /* the stand-in may still be ending */ }
+            }
+        }
+
+        [Fact]
         public void FormatSections_throws_when_tctidy_cannot_start()
         {
             var runner = new TctidyRunner(
@@ -560,6 +584,24 @@ namespace TcTidy.VsExtension.Core.Tests
             var path = Path.Combine(Path.GetTempPath(), $"tctidy-test-{Guid.NewGuid():N}{extension}");
             File.WriteAllText(path, content);
             return path;
+        }
+
+        // A stand-in for a tctidy that hangs before it reads stdin: it ignores its arguments
+        // and its input, and ends by itself after a few seconds.
+        private static string StalledTctidy(string dir)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                var script = Path.Combine(dir, "stalled.cmd");
+                File.WriteAllText(script, "@ping -n 6 127.0.0.1 > nul\r\n");
+                return script;
+            }
+
+            var shell = Path.Combine(dir, "stalled.sh");
+            File.WriteAllText(shell, "#!/bin/sh\nexec sleep 5\n");
+            File.SetUnixFileMode(
+                shell, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            return shell;
         }
 
         private static string NewTempDirectory()
