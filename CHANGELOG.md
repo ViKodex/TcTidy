@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `logical_expression_layout = "expanded_branches"`, inside a parenthesized
   branch of an `OR` or `XOR` chain, and the expression around it wraps with it.
   Such a statement used to stay on one line, even beyond `line_width`.
+- Formatter: the formatting time of nested calls and parenthesized
+  expressions no longer doubles with each level. A single statement nested
+  about 20 levels deep could take longer than the extension's time limit,
+  and deeper ones could exhaust the memory; 30 levels now format in a
+  fraction of a second.
 - Extension: *Format with TcTidy* no longer freezes the XAE Shell while it
   formats the POUs open in the editor. Their sections are formatted in the
   background, in one `tctidy` run where each section used to start its own.

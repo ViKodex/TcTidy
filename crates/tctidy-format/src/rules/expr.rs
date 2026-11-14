@@ -25,8 +25,33 @@ pub(crate) fn format_expr(expr: &Expr, f: &FormatContext) -> Doc {
 
 #[derive(Clone, Copy, Default)]
 struct ExprLayout {
-    force_break: bool,
+    force_break: ForceBreak,
     break_parenthesized_with: Option<GroupId>,
+}
+
+/// When an expression must break regardless of its width.
+#[derive(Clone, Copy, Default)]
+enum ForceBreak {
+    #[default]
+    Never,
+    Always,
+    /// Exactly when the given group breaks. The expression is rendered once and
+    /// breaks with that group, instead of being rendered once per layout.
+    WithGroup(GroupId),
+}
+
+impl ForceBreak {
+    /// The document that forces the enclosing group to break under this
+    /// condition. Behind an `IfBreak`, the forced break does not propagate when
+    /// the document is built: the fitting check meets it once the referenced
+    /// group has broken, so the enclosing group breaks then and only then.
+    fn doc(self) -> Doc {
+        match self {
+            ForceBreak::Never => nil(),
+            ForceBreak::Always => break_parent(),
+            ForceBreak::WithGroup(group_id) => if_break_group(group_id, break_parent(), nil()),
+        }
+    }
 }
 
 /// Render `expr`. `indented` is true when an enclosing operator chain has already
@@ -172,7 +197,7 @@ fn render_expr_with_layout(
 /// Render a binary expression with width-sensitive breaks. Operators at the
 /// same precedence form one group; higher-precedence children keep independent
 /// groups so an `OR` chain can break without needlessly exploding every `AND`.
-fn format_bin_chain(b: &BinExpr, f: &FormatContext, force_break: bool) -> Doc {
+fn format_bin_chain(b: &BinExpr, f: &FormatContext, force_break: ForceBreak) -> Doc {
     let Some(level) = b.op_token().and_then(|token| binary_level(token.kind())) else {
         return format_bin_source_layout(b, f, false);
     };
@@ -183,11 +208,12 @@ fn format_bin_chain(b: &BinExpr, f: &FormatContext, force_break: bool) -> Doc {
     let max_inline = usize::from(f.style.logical_chain_max_inline);
     let too_many_operands =
         level <= 3 && max_inline > 0 && bin_level_operand_count(b, level) > max_inline;
-    if force_break || too_many_operands {
-        group_with_id(group_id, concat([break_parent(), content]))
+    let force_break = if too_many_operands {
+        ForceBreak::Always
     } else {
-        group_with_id(group_id, content)
-    }
+        force_break
+    };
+    group_with_id(group_id, concat([force_break.doc(), content]))
 }
 
 /// Operands of the chain at `level` that `b` heads: `a OR b AND c OR d` has
@@ -265,7 +291,7 @@ fn render_bin_operand(expr: &Expr, level: u8, group_id: GroupId, f: &FormatConte
         f,
         false,
         ExprLayout {
-            force_break: false,
+            force_break: ForceBreak::Never,
             break_parenthesized_with,
         },
     )
@@ -449,24 +475,24 @@ fn format_paren(
         && !requires_source_layout(node, f)
     {
         if let Some(expression) = Expr::cast(items[0].clone()) {
-            let normal = expression_paren(&expression, f, false);
-            if matches!(expression, Expr::Bin(_)) {
-                let broken = expression_paren(&expression, f, true);
-                if layout.force_break {
-                    return broken;
+            // A binary branch of an expanded logical chain breaks with the
+            // chain. It is rendered once with a break conditional on the chain,
+            // not once per layout, which would double the work at each
+            // nesting level.
+            let force_break = match layout.break_parenthesized_with {
+                Some(group_id) if matches!(expression, Expr::Bin(_)) => {
+                    ForceBreak::WithGroup(group_id)
                 }
-                if let Some(group_id) = layout.break_parenthesized_with {
-                    return if_break_group(group_id, broken, normal);
-                }
-            }
-            return normal;
+                _ => ForceBreak::Never,
+            };
+            return expression_paren(&expression, f, force_break);
         }
     }
 
     format_paren_source_layout(node, f, indented)
 }
 
-fn expression_paren(expression: &Expr, f: &FormatContext, force_break: bool) -> Doc {
+fn expression_paren(expression: &Expr, f: &FormatContext, force_break: ForceBreak) -> Doc {
     match f.style.parenthesized_expression_layout {
         ParenthesizedExpressionLayout::Hanging => {
             hanging_expression_paren(expression, f, force_break)
@@ -477,13 +503,13 @@ fn expression_paren(expression: &Expr, f: &FormatContext, force_break: bool) -> 
     }
 }
 
-fn hanging_expression_paren(expression: &Expr, f: &FormatContext, force_break: bool) -> Doc {
+fn hanging_expression_paren(expression: &Expr, f: &FormatContext, force_break: ForceBreak) -> Doc {
     let group_id = f.fresh_group_id();
     group_with_id(
         group_id,
         concat([
             text("("),
-            if force_break { break_parent() } else { nil() },
+            force_break.doc(),
             if_break_group(group_id, nil(), text(f.paren_pad())),
             align_current(concat([
                 render_expr_with_layout(
@@ -502,8 +528,9 @@ fn hanging_expression_paren(expression: &Expr, f: &FormatContext, force_break: b
     )
 }
 
-fn vertical_expression_paren(expression: &Expr, f: &FormatContext, force_break: bool) -> Doc {
-    let content = concat([
+fn vertical_expression_paren(expression: &Expr, f: &FormatContext, force_break: ForceBreak) -> Doc {
+    group(concat([
+        force_break.doc(),
         text("("),
         indent(concat([
             f.paren_soft_line(),
@@ -519,12 +546,7 @@ fn vertical_expression_paren(expression: &Expr, f: &FormatContext, force_break: 
         ])),
         f.paren_soft_line(),
         text(")"),
-    ]);
-    if force_break {
-        group_break(content)
-    } else {
-        group(content)
-    }
+    ]))
 }
 
 fn format_paren_source_layout(
@@ -771,7 +793,7 @@ pub(crate) fn paren_is_multiline(node: &tctidy_syntax::SyntaxNode) -> bool {
 /// to `name_col`) or a bare expression.
 fn item_doc(node: &tctidy_syntax::SyntaxNode, name_col: usize, f: &FormatContext) -> Doc {
     if let Some(na) = NamedArg::cast(node.clone()) {
-        named_arg_doc(&na, name_col, f)
+        named_arg_doc(&na, NamePad::Column(name_col), f)
     } else if let Some(e) = Expr::cast(node.clone()) {
         format_expr(&e, f)
     } else {
@@ -817,11 +839,10 @@ pub(crate) fn format_arg_list(al: &tctidy_syntax::SyntaxNode, f: &FormatContext)
     let group_id = f.fresh_group_id();
     let mut items = Vec::new();
     for (index, arg) in args.iter().enumerate() {
-        items.push(if_break_group(
-            group_id,
-            call_arg(arg, name_col, f),
-            call_arg(arg, 0, f),
-        ));
+        // Only the padding before `:=` depends on the list breaking: rendering
+        // the argument once per layout would double the work at each level of
+        // nested calls.
+        items.push(call_arg(arg, NamePad::WhenBroken(group_id, name_col), f));
         if index + 1 < args.len() {
             items.push(f.comma());
         } else if f.emit_trailing_sep(f.style.trailing_comma_collection) {
@@ -915,7 +936,7 @@ fn format_arg_list_source_layout(al: &tctidy_syntax::SyntaxNode, f: &FormatConte
                     .unwrap_or_else(|| text(" "));
                 out.push(gap);
             }
-            out.push(call_arg(a, 0, f));
+            out.push(call_arg(a, NamePad::Column(0), f));
             if let Some(tok) = last_sig_token(a) {
                 for p in f.comments.trailing(&tok) {
                     out.push(text(" "));
@@ -953,7 +974,7 @@ fn format_arg_list_source_layout(al: &tctidy_syntax::SyntaxNode, f: &FormatConte
             }
             inner.push(leading_doc(lead, f.style.blank_lines_max));
         }
-        inner.push(call_arg(a, name_col, f));
+        inner.push(call_arg(a, NamePad::Column(name_col), f));
         let is_last = i + 1 == args.len();
         if !is_last || f.emit_trailing_sep(f.style.trailing_comma_collection) {
             inner.push(text(","));
@@ -1023,11 +1044,21 @@ fn gap_to_node(
     )
 }
 
+/// How far the name of a named argument is padded before its `:=` or `=>`.
+#[derive(Clone, Copy)]
+enum NamePad {
+    /// Always to this column.
+    Column(usize),
+    /// To this column when the group breaks (one argument per line, operators
+    /// aligned), not at all when it stays flat.
+    WhenBroken(GroupId, usize),
+}
+
 /// One call argument: positional or `name := value` / `name => value` (the name
-/// padded to `name_col` for alignment; the value may be empty for `=>`).
-fn call_arg(node: &tctidy_syntax::SyntaxNode, name_col: usize, f: &FormatContext) -> Doc {
+/// padded for alignment; the value may be empty for `=>`).
+fn call_arg(node: &tctidy_syntax::SyntaxNode, pad: NamePad, f: &FormatContext) -> Doc {
     if let Some(na) = NamedArg::cast(node.clone()) {
-        named_arg_doc(&na, name_col, f)
+        named_arg_doc(&na, pad, f)
     } else if let Some(e) = node.children().find_map(Expr::cast) {
         format_expr(&e, f)
     } else {
@@ -1035,9 +1066,17 @@ fn call_arg(node: &tctidy_syntax::SyntaxNode, name_col: usize, f: &FormatContext
     }
 }
 
-fn named_arg_doc(arg: &NamedArg, name_col: usize, f: &FormatContext) -> Doc {
+fn named_arg_doc(arg: &NamedArg, pad: NamePad, f: &FormatContext) -> Doc {
     let name = arg.name().map(|t| t.text().to_string()).unwrap_or_default();
-    let pad = name_col.saturating_sub(name.chars().count());
+    let width = name.chars().count();
+    let pad = match pad {
+        NamePad::Column(name_col) => text(" ".repeat(name_col.saturating_sub(width))),
+        NamePad::WhenBroken(group_id, name_col) => if_break_group(
+            group_id,
+            text(" ".repeat(name_col.saturating_sub(width))),
+            nil(),
+        ),
+    };
     let assign = arg.assign_token();
     let value = arg.value();
     let operator = match assign.as_ref() {
@@ -1045,7 +1084,7 @@ fn named_arg_doc(arg: &NamedArg, name_col: usize, f: &FormatContext) -> Doc {
         _ => " :=",
     };
 
-    let mut parts = vec![text(name), text(" ".repeat(pad)), text(operator)];
+    let mut parts = vec![text(name), pad, text(operator)];
     if let Some(value) = value {
         let gap = match (assign.as_ref(), first_sig_token(value.syntax())) {
             (Some(previous), Some(next)) => {
@@ -1065,4 +1104,158 @@ fn named_arg_doc(arg: &NamedArg, name_col: usize, f: &FormatContext) -> Doc {
         parts.push(format_expr(&value, f));
     }
     concat(parts)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    use tctidy_pretty::LineEnding;
+    use tctidy_syntax::parse_implementation;
+
+    use super::*;
+    use crate::style::StyleConfig;
+    use crate::trivia::Comments;
+
+    /// Statements nested `depth` levels deep, one per shape that used to
+    /// double its formatting cost at each level.
+    fn nested_statements(depth: usize) -> Vec<String> {
+        let mut call = "a".to_string();
+        let mut concat_call = "'a'".to_string();
+        let mut arithmetic = "a".to_string();
+        let mut logical = "a AND q".to_string();
+        let mut named = "a".to_string();
+        for _ in 0..depth {
+            call = format!("F({call})");
+            concat_call = format!("CONCAT({concat_call}, 'b')");
+            arithmetic = format!("({arithmetic} + 1) * 2");
+            logical = format!("p OR ({logical})");
+            named = format!("Limit(nValue := {named}, nMax := 9)");
+        }
+        [call, concat_call, arithmetic, format!("({logical})"), named]
+            .into_iter()
+            .map(|expression| format!("x := {expression};"))
+            .collect()
+    }
+
+    /// Both logical layouts, with hanging and with vertical parentheses and
+    /// argument lists, each with a short name for the failure messages.
+    fn styles() -> Vec<(String, StyleConfig)> {
+        let mut styles = Vec::new();
+        for logical in [
+            LogicalExpressionLayout::ExpandedBranches,
+            LogicalExpressionLayout::Compact,
+        ] {
+            for vertical in [false, true] {
+                let mut style = StyleConfig {
+                    logical_expression_layout: logical,
+                    ..StyleConfig::default()
+                };
+                if vertical {
+                    style.parenthesized_expression_layout = ParenthesizedExpressionLayout::Vertical;
+                    style.call_argument_layout = CallArgumentLayout::Vertical;
+                }
+                let lists = if vertical { "vertical" } else { "hanging" };
+                styles.push((format!("{logical:?}, {lists} lists"), style));
+            }
+        }
+        styles
+    }
+
+    fn doc_size(doc: &Doc) -> usize {
+        1 + match doc {
+            Doc::Text(..) | Doc::Line(_) | Doc::LineSuffixBoundary | Doc::BreakParent => 0,
+            Doc::Concat(parts) | Doc::Fill(parts) => parts.iter().map(doc_size).sum(),
+            Doc::Group {
+                content,
+                expanded_states,
+                ..
+            } => {
+                doc_size(content)
+                    + expanded_states
+                        .iter()
+                        .flatten()
+                        .map(doc_size)
+                        .sum::<usize>()
+            }
+            Doc::Indent(content)
+            | Doc::Align { content, .. }
+            | Doc::AlignCurrent(content)
+            | Doc::IndentIfBreak { content, .. }
+            | Doc::LineSuffix(content)
+            | Doc::Label(_, content) => doc_size(content),
+            Doc::IfBreak { broke, flat, .. } => doc_size(broke) + doc_size(flat),
+        }
+    }
+
+    fn doc_size_of(source: &str, style: &StyleConfig) -> usize {
+        let parse = parse_implementation(source);
+        assert!(parse.errors().is_empty(), "{:?}", parse.errors());
+        // The same steps as `format_root`, stopping before the printer.
+        let mut comments = Comments::attach(&parse.syntax_node());
+        comments.normalize_line_comments(style.space_after_line_comment);
+        let mut context = FormatContext::new(style, &comments);
+        let doc = crate::entry::format_node(&parse.syntax_node(), &mut context)
+            .expect("implementation lowers to a document");
+        doc_size(&doc)
+    }
+
+    /// Each sub-expression is rendered once, so the document grows linearly
+    /// with the nesting depth. Rendering one copy per layout doubled it at each
+    /// level: formatting took seconds at 18 levels and ran out of memory at 30.
+    ///
+    /// The document sizes are compared at small depths first, where even that
+    /// doubling stays cheap, so a regression fails here before the 30-level run
+    /// below is reached. That run then catches a cost that explodes elsewhere,
+    /// such as in the printer, under a deadline.
+    #[test]
+    fn nested_expressions_do_not_double_per_level() {
+        for (name, style) in styles() {
+            let shallow = nested_statements(8);
+            let deep = nested_statements(16);
+            for (shallow, deep) in shallow.iter().zip(&deep) {
+                let (shallow_size, deep_size) =
+                    (doc_size_of(shallow, &style), doc_size_of(deep, &style));
+                assert!(
+                    deep_size <= 3 * shallow_size,
+                    "document size grows faster than the nesting depth: \
+                     {shallow_size} nodes at 8 levels, {deep_size} at 16, for `{deep}` \
+                     ({name})"
+                );
+            }
+        }
+
+        let (sender, receiver) = mpsc::channel();
+        thread::spawn(move || {
+            for (name, style) in styles() {
+                for source in nested_statements(30) {
+                    let once = crate::format_implementation(
+                        &parse_implementation(&source),
+                        &style,
+                        LineEnding::Lf,
+                    )
+                    .expect("nested statement formats");
+                    let twice = crate::format_implementation(
+                        &parse_implementation(&once),
+                        &style,
+                        LineEnding::Lf,
+                    )
+                    .expect("formatted statement formats again");
+                    assert_eq!(twice, once, "second pass changed `{source}` ({name})");
+                }
+            }
+            sender.send(()).expect("test is waiting");
+        });
+        match receiver.recv_timeout(Duration::from_secs(10)) {
+            Ok(()) => {}
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                panic!("formatting 30 nested levels took more than 10 s")
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("formatting 30 nested levels failed, see the panic above")
+            }
+        }
+    }
 }
