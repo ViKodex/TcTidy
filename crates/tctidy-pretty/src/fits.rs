@@ -5,7 +5,14 @@
 //! for) and returns as soon as the answer is known:
 //!
 //! * `true`  the instant a line break is reached (rest of the line is moot),
-//! * `false` the instant the remaining width goes negative.
+//! * `false` the instant the remaining width goes negative,
+//! * `false` the instant flat content holds a forced break (a group that must
+//!   break, a hard line, a `BreakParent`): it has no flat rendering.
+//!
+//! The last rule is what keeps a group from printing flat around a forced
+//! break that sits behind a [`crate::doc::Doc::IfBreak`] or a
+//! [`crate::doc::Doc::IndentIfBreak`]: break propagation stops there, and the
+//! printer never breaks a group inside a flat one.
 //!
 //! Because [`crate::doc::Doc::Text`] carries its pre-measured width, this is
 //! O(width) rather than O(doc size), the key to the latency budget. A
@@ -62,7 +69,7 @@ pub(crate) fn fits(
                 }
             }
             Doc::Line(kind) => match (mode, kind) {
-                (_, LineKind::Hard | LineKind::HardLiteral) => return true,
+                (Mode::Flat, LineKind::Hard | LineKind::HardLiteral) => return false,
                 (Mode::Break, _) => return true,
                 (Mode::Flat, LineKind::Space) => {
                     remaining -= 1;
@@ -78,7 +85,7 @@ pub(crate) fn fits(
                 expanded_states,
                 ..
             } => {
-                if must_be_flat && *should_break {
+                if *should_break && (must_be_flat || mode == Mode::Flat) {
                     return false;
                 }
                 let m = if *should_break { Mode::Break } else { mode };
@@ -125,7 +132,12 @@ pub(crate) fn fits(
                     doc: chosen,
                 });
             }
-            Doc::LineSuffix(_) | Doc::LineSuffixBoundary | Doc::BreakParent => {}
+            Doc::BreakParent => {
+                if mode == Mode::Flat {
+                    return false;
+                }
+            }
+            Doc::LineSuffix(_) | Doc::LineSuffixBoundary => {}
         }
     }
 }
@@ -136,20 +148,43 @@ mod tests {
     use crate::builders::{concat, group, hard_line, text};
     use crate::print::{propagate_breaks, Indent};
 
-    /// A group carrying a forced break can never satisfy `must_be_flat`, while
-    /// the same query without the flat requirement short-circuits to true at
-    /// the hard line. Both `print` call sites pass `must_be_flat = false`, so
-    /// this branch is only reachable directly.
+    /// A group carrying a forced break never fits as flat content. In break
+    /// mode the walk short-circuits to true at its hard line, unless the
+    /// caller requires a flat rendering. Both `print` call sites pass
+    /// `must_be_flat = false`, so that last branch is only reachable directly.
     #[test]
-    fn flat_required_group_with_forced_break_does_not_fit() {
+    fn group_with_forced_break_does_not_fit_as_flat_content() {
         let mut doc = group(concat([text("a"), hard_line(), text("b")]));
         propagate_breaks(&mut doc);
+        let cmd = |mode| Cmd {
+            indent: Indent::root(),
+            mode,
+            doc: &doc,
+        };
+        assert!(!fits(80, cmd(Mode::Flat), &[], &HashMap::new(), false));
+        assert!(!fits(80, cmd(Mode::Flat), &[], &HashMap::new(), true));
+        assert!(fits(80, cmd(Mode::Break), &[], &HashMap::new(), false));
+        assert!(!fits(80, cmd(Mode::Break), &[], &HashMap::new(), true));
+    }
+
+    /// A forced break in the commands queued after the measured content ends
+    /// the line: the queue is in break mode, so what follows is moot.
+    #[test]
+    fn forced_break_in_the_queued_commands_ends_the_line() {
+        let mut queued = group(concat([text("b"), hard_line(), text("c")]));
+        propagate_breaks(&mut queued);
+        let next = text("a");
         let cmd = Cmd {
             indent: Indent::root(),
             mode: Mode::Flat,
-            doc: &doc,
+            doc: &next,
         };
-        assert!(!fits(80, cmd, &[], &HashMap::new(), true));
-        assert!(fits(80, cmd, &[], &HashMap::new(), false));
+        let rest = [Cmd {
+            indent: Indent::root(),
+            mode: Mode::Break,
+            doc: &queued,
+        }];
+        assert!(fits(2, cmd, &rest, &HashMap::new(), false));
+        assert!(!fits(1, cmd, &rest, &HashMap::new(), false));
     }
 }
