@@ -17,15 +17,16 @@ pub struct ConfigResolver {
     explicit: Option<Rc<FormatOptions>>,
     /// Discovered config file (or `None` for the house style) per directory.
     by_dir: HashMap<PathBuf, Option<PathBuf>>,
-    /// Loaded options per config file; `Err` once reported as invalid.
-    by_file: HashMap<PathBuf, Result<Rc<FormatOptions>, ()>>,
+    /// Loaded options per config file; `Err`, with its diagnostic, once reported
+    /// as invalid.
+    by_file: HashMap<PathBuf, Result<Rc<FormatOptions>, String>>,
     default: Rc<FormatOptions>,
 }
 
 impl ConfigResolver {
     /// A resolver honoring `--config`. Fails (after reporting) when the explicit
     /// file cannot be loaded.
-    pub fn new(explicit: Option<&str>) -> Result<Self, ()> {
+    pub fn new(explicit: Option<&str>) -> Result<Self, String> {
         let explicit = match explicit {
             Some(path) => Some(Rc::new(load(Path::new(path))?)),
             None => None,
@@ -39,7 +40,7 @@ impl ConfigResolver {
     }
 
     /// The options for a file at `path`.
-    pub fn for_file(&mut self, path: &Path) -> Result<Rc<FormatOptions>, ()> {
+    pub fn for_file(&mut self, path: &Path) -> Result<Rc<FormatOptions>, String> {
         let dir = std::path::absolute(path)
             .ok()
             .and_then(|p| p.parent().map(Path::to_path_buf))
@@ -49,7 +50,7 @@ impl ConfigResolver {
 
     /// The options for stdin: those of the file at `filepath` (which need not
     /// exist) when given, else discovered from the current directory.
-    pub fn for_stdin(&mut self, filepath: Option<&Path>) -> Result<Rc<FormatOptions>, ()> {
+    pub fn for_stdin(&mut self, filepath: Option<&Path>) -> Result<Rc<FormatOptions>, String> {
         match filepath {
             Some(path) => self.for_file(path),
             None => {
@@ -59,7 +60,7 @@ impl ConfigResolver {
         }
     }
 
-    fn for_dir(&mut self, dir: &Path) -> Result<Rc<FormatOptions>, ()> {
+    fn for_dir(&mut self, dir: &Path) -> Result<Rc<FormatOptions>, String> {
         if let Some(opts) = &self.explicit {
             return Ok(Rc::clone(opts));
         }
@@ -79,12 +80,15 @@ impl ConfigResolver {
     }
 }
 
-fn load(path: &Path) -> Result<FormatOptions, ()> {
+/// Load one configuration file, reporting why on stderr when it is invalid.
+fn load(path: &Path) -> Result<FormatOptions, String> {
     load_config(path)
         .map(|style| FormatOptions { style })
         .map_err(|e| {
-            for line in e.to_string().lines() {
+            let message = e.to_string();
+            for line in message.lines() {
                 eprintln!("tctidy: {line}");
             }
+            message
         })
 }

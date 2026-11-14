@@ -44,6 +44,27 @@ pub struct Cli {
     )]
     pub clear_xae_cache: Option<String>,
 
+    /// Internal extension protocol: format the ST sections of a JSON request
+    /// read from stdin, and write their results as JSON to stdout.
+    #[arg(
+        long,
+        hide = true,
+        conflicts_with_all = [
+            "discover_xae_shells",
+            "clear_xae_cache",
+            "print_config",
+            "settings",
+            "paths",
+            "files_from",
+            "check",
+            "diff",
+            "stdin_filepath",
+            "decl",
+            "impl_"
+        ]
+    )]
+    pub stdin_sections: bool,
+
     /// Files, directories, or globs to format. Use `-` to read ST from stdin.
     pub paths: Vec<String>,
 

@@ -11,6 +11,7 @@ mod config;
 mod diff;
 mod exit;
 mod io_atomic;
+mod sections;
 mod settings_server;
 mod stdin;
 mod walk;
@@ -48,8 +49,12 @@ fn main() -> ExitCode {
                 print!("{}", tctidy::config::render_config(&opts.style, true));
                 exit::OK
             }
-            Err(()) => exit::config_failed(),
+            Err(_) => exit::config_failed(),
         };
+    }
+
+    if args.stdin_sections {
+        return sections::run(&mut configs);
     }
 
     // The targets are the positional paths plus any read from `--files-from`. In
@@ -83,7 +88,7 @@ fn main() -> ExitCode {
     if args.files_from.is_none() && paths == ["-"] {
         return match configs.for_stdin(args.stdin_filepath.as_deref().map(Path::new)) {
             Ok(opts) => stdin::run(&opts, section, args.check, args.diff),
-            Err(()) => exit::config_failed(),
+            Err(_) => exit::config_failed(),
         };
     }
 
@@ -103,7 +108,7 @@ fn main() -> ExitCode {
     for file in files {
         let opts: Rc<FormatOptions> = match configs.for_file(&file) {
             Ok(opts) => opts,
-            Err(()) => {
+            Err(_) => {
                 any_config_error = true;
                 continue;
             }
