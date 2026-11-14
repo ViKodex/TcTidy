@@ -246,3 +246,200 @@ fn logical_chain_limit_zero_leaves_wrapping_to_the_line_width() {
     let source = "bReady := bPowerOk AND bAirOk AND bDoorClosed AND NOT bEStop;";
     assert_eq!(assert_idempotent(source, &style), source);
 }
+
+// A chain over `logical_chain_max_inline`, a call with two or more named
+// arguments, an initializer over its limit and an argument list the source
+// wrote across lines always break. Nested in a parenthesized branch or in a
+// call argument, they still break, and wrap what encloses them.
+
+/// Both logical layouts, at `line_width`.
+fn logical_layouts(line_width: u16) -> [StyleConfig; 2] {
+    [
+        LogicalExpressionLayout::ExpandedBranches,
+        LogicalExpressionLayout::Compact,
+    ]
+    .map(|logical_expression_layout| StyleConfig {
+        logical_expression_layout,
+        line_width,
+        ..StyleConfig::default()
+    })
+}
+
+fn assert_within_width(output: &str, style: &StyleConfig) {
+    let limit = usize::from(style.line_width);
+    assert!(
+        output.lines().all(|line| line.chars().count() <= limit),
+        "a line exceeds {limit} columns:\n{output}"
+    );
+}
+
+#[test]
+fn chain_over_the_operand_limit_breaks_inside_a_parenthesized_branch() {
+    let source = "IF (a = 1 AND b = 2 AND c = 3 AND d = 4) OR e THEN\nx := 1;\nEND_IF";
+    for style in logical_layouts(160) {
+        assert_eq!(
+            assert_idempotent(source, &style),
+            concat!(
+                "IF (a = 1\n",
+                "    AND b = 2\n",
+                "    AND c = 3\n",
+                "    AND d = 4\n",
+                "    )\n",
+                "   OR e THEN\n",
+                "    x := 1;\n",
+                "END_IF"
+            ),
+            "{:?}",
+            style.logical_expression_layout
+        );
+    }
+}
+
+#[test]
+fn chain_over_the_operand_limit_breaks_inside_a_call_argument() {
+    for style in logical_layouts(160) {
+        assert_eq!(
+            assert_idempotent(
+                "Start(bAutomatic OR bManual OR bService OR bSetup);",
+                &style
+            ),
+            concat!(
+                "Start(bAutomatic\n",
+                "      OR bManual\n",
+                "      OR bService\n",
+                "      OR bSetup\n",
+                "      );"
+            ),
+            "{:?}",
+            style.logical_expression_layout
+        );
+        assert_eq!(
+            assert_idempotent("Trigger(CLK := bA AND bB AND bC AND bD);", &style),
+            concat!(
+                "Trigger(CLK := bA\n",
+                "               AND bB\n",
+                "               AND bC\n",
+                "               AND bD\n",
+                "        );"
+            ),
+            "{:?}",
+            style.logical_expression_layout
+        );
+    }
+}
+
+#[test]
+fn named_argument_call_breaks_inside_a_call_argument() {
+    for style in logical_layouts(160) {
+        assert_eq!(
+            assert_idempotent("x := Bar(Foo(a := 1, b := 2));", &style),
+            concat!(
+                "x := Bar(Foo(a := 1,\n",
+                "             b := 2)\n",
+                "         );"
+            ),
+            "{:?}",
+            style.logical_expression_layout
+        );
+    }
+}
+
+#[test]
+fn named_argument_call_breaks_inside_a_parenthesized_branch() {
+    for style in logical_layouts(160) {
+        assert_eq!(
+            assert_idempotent("x := p OR (n = Foo(a := 1, b := 2));", &style),
+            concat!(
+                "x := p\n",
+                "     OR (n\n",
+                "         = Foo(a := 1,\n",
+                "               b := 2)\n",
+                "         );"
+            ),
+            "{:?}",
+            style.logical_expression_layout
+        );
+    }
+}
+
+#[test]
+fn branch_or_argument_without_a_forced_break_stays_inline() {
+    for style in logical_layouts(160) {
+        for source in [
+            "x := p OR (a AND b AND c);",
+            "x := p OR (n = Foo(a := 1));",
+            "x := p OR (n = Foo(1, 2));",
+            "Start(bA OR bB OR bC);",
+            "x := Bar(Foo(a := 1));",
+        ] {
+            assert_eq!(assert_idempotent(source, &style), source);
+        }
+    }
+}
+
+#[test]
+fn forced_break_in_a_branch_or_an_argument_respects_the_line_width() {
+    let branch =
+        "bRun := bAuto OR (nMode = 1 AND bDoorClosed AND bGuardOk AND bAirOk AND NOT bFault);";
+    let branch_wrapped = concat!(
+        "bRun := bAuto\n",
+        "        OR (nMode = 1\n",
+        "            AND bDoorClosed\n",
+        "            AND bGuardOk\n",
+        "            AND bAirOk\n",
+        "            AND NOT bFault\n",
+        "            );"
+    );
+    let argument = "Start(bAutomatic OR bManual OR bService OR bSetup OR bHoming);";
+    let argument_wrapped = concat!(
+        "Start(bAutomatic\n",
+        "      OR bManual\n",
+        "      OR bService\n",
+        "      OR bSetup\n",
+        "      OR bHoming\n",
+        "      );"
+    );
+    for style in logical_layouts(60) {
+        for (source, wrapped) in [(branch, branch_wrapped), (argument, argument_wrapped)] {
+            let output = assert_idempotent(source, &style);
+            assert_eq!(output, wrapped, "{:?}", style.logical_expression_layout);
+            assert_within_width(&output, &style);
+            // A source that is already wrapped is not joined back.
+            assert_eq!(fmt(wrapped, &style), wrapped);
+        }
+    }
+}
+
+#[test]
+fn initializer_over_its_limit_breaks_inside_a_call_argument() {
+    for style in logical_layouts(160) {
+        assert_eq!(
+            assert_idempotent("Foo(x, (a := 1, b := 2, c := 3));", &style),
+            concat!(
+                "Foo(x,\n",
+                "    (a := 1,\n",
+                "     b := 2,\n",
+                "     c := 3\n",
+                "    )\n",
+                "    );"
+            ),
+            "{:?}",
+            style.logical_expression_layout
+        );
+    }
+}
+
+#[test]
+fn argument_list_wrapped_by_the_width_inside_a_branch_stays_wrapped() {
+    // The first pass breaks the argument list for the width. The second pass
+    // reads it as a list the source wrote across lines, which always breaks.
+    let source = concat!(
+        "IF (nA = Convert(stRecipe.stStation.sSerialNumberText)) OR (nB = 0) THEN\n",
+        "x := 1;\n",
+        "END_IF"
+    );
+    for style in logical_layouts(40) {
+        let output = assert_idempotent(source, &style);
+        assert!(output.starts_with("IF (nA\n"), "{output}");
+    }
+}

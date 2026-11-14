@@ -345,17 +345,163 @@ fn nested_conditional_group_is_measured_by_its_first_state() {
     assert_eq!(print(&doc, &opts(4)), "a bb");
 }
 
+// Forced breaks behind an `IfBreak` arm. propagate_breaks stops at IfBreak (a
+// break in the broke arm must not force the group), so the measurement is what
+// keeps a group from printing flat around a forced break.
+
+/// A group that always breaks: `bbbb` and `cccc` on two lines.
+fn forced_pair() -> Doc {
+    group(concat([break_parent(), text("bbbb"), line(), text("cccc")]))
+}
+
 #[test]
-fn forced_break_group_inside_an_if_break_arm_is_seen_by_the_fit() {
-    // propagate_breaks stops at IfBreak, so this is the one way a should_break
-    // group reaches the measurement: it flips the walk to break mode, where the
-    // soft line ends the check early.
-    let forced = group(concat([break_parent(), line(), text("x")]));
-    let doc = group(concat([text("aaaa"), line(), if_break(nil(), forced)]));
-    // Double space is expected: the outer group prints flat (its own line is a
-    // space) and the forced group's line also flattens to a space, because
-    // flat mode wins over should_break at the print stage.
-    assert_eq!(print(&doc, &opts(80)), "aaaa  x");
+fn forced_break_in_the_flat_arm_of_an_if_break_breaks_the_enclosing_group() {
+    // The same forced content in both arms, the shape of a call argument: the
+    // flat layout would print the forced group, so the group breaks at any
+    // width.
+    let mut ids = GroupIdBuilder::default();
+    let g = ids.fresh();
+    let doc = group_with_id(
+        g,
+        concat([
+            text("aaaa"),
+            line(),
+            if_break_group(g, forced_pair(), forced_pair()),
+            line(),
+            text("dddd"),
+        ]),
+    );
+    assert_eq!(
+        print(&doc, &opts(80)),
+        "aaaa
+bbbb
+cccc
+dddd"
+    );
+    assert_eq!(
+        print(&doc, &opts(10)),
+        "aaaa
+bbbb
+cccc
+dddd"
+    );
+}
+
+#[test]
+fn forced_break_in_the_broke_arm_of_an_if_break_does_not_break_the_group() {
+    // The broke arm only prints once the group has broken for another reason.
+    let mut ids = GroupIdBuilder::default();
+    let g = ids.fresh();
+    let doc = group_with_id(
+        g,
+        concat([
+            text("aaaa"),
+            line(),
+            if_break_group(g, forced_pair(), text("FLAT")),
+        ]),
+    );
+    assert_eq!(print(&doc, &opts(80)), "aaaa FLAT");
+    assert_eq!(
+        print(&doc, &opts(8)),
+        "aaaa
+bbbb
+cccc"
+    );
+}
+
+#[test]
+fn hard_line_or_break_parent_in_the_flat_arm_breaks_the_enclosing_group() {
+    let with_hard_line = group(concat([
+        text("aaaa"),
+        line(),
+        if_break(text("B"), concat([text("b"), hard_line(), text("c")])),
+    ]));
+    assert_eq!(
+        print(&with_hard_line, &opts(80)),
+        "aaaa
+B"
+    );
+
+    let with_break_parent = group(concat([
+        text("aaaa"),
+        line(),
+        if_break(text("B"), concat([text("b"), break_parent()])),
+    ]));
+    assert_eq!(
+        print(&with_break_parent, &opts(80)),
+        "aaaa
+B"
+    );
+}
+
+#[test]
+fn forced_break_inside_indent_if_break_breaks_the_enclosing_group() {
+    let mut ids = GroupIdBuilder::default();
+    let g = ids.fresh();
+    let doc = group_with_id(
+        g,
+        concat([
+            text("aa"),
+            indent_if_break(g, concat([line(), forced_pair()])),
+        ]),
+    );
+    assert_eq!(
+        print(&doc, &opts(80)),
+        "aa
+    bbbb
+    cccc"
+    );
+}
+
+#[test]
+fn if_break_keyed_to_an_earlier_group_follows_the_arm_that_prints() {
+    let mut ids = GroupIdBuilder::default();
+    let earlier = ids.fresh();
+    let broken_earlier = || {
+        group_with_id(
+            earlier,
+            concat([break_parent(), text("s"), line(), text("t")]),
+        )
+    };
+
+    // The earlier group broke, so the broke arm prints: a forced break there
+    // breaks the group around it.
+    let doc = concat([
+        broken_earlier(),
+        hard_line(),
+        group(concat([
+            text("aaaa"),
+            line(),
+            if_break_group(earlier, forced_pair(), text("X")),
+        ])),
+    ]);
+    assert_eq!(
+        print(&doc, &opts(80)),
+        "s
+t
+aaaa
+bbbb
+cccc"
+    );
+
+    // A forced break in the arm that does not print forces nothing.
+    let doc = concat([
+        broken_earlier(),
+        hard_line(),
+        group(concat([
+            text("aaaa"),
+            line(),
+            if_break_group(earlier, text("X"), forced_pair()),
+            line(),
+            text("dddd"),
+        ])),
+    ]);
+    assert_eq!(
+        print(&doc, &opts(80)),
+        "s
+t
+aaaa X dddd"
+    );
 }
 
 #[test]

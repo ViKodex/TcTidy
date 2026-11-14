@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Formatter: a construct that always breaks (a logical chain over
+  `logical_chain_max_inline`, a call with two or more named arguments, an
+  initializer over its limit, an argument list written across several lines)
+  now also breaks inside a call argument and, with
+  `logical_expression_layout = "expanded_branches"`, inside a parenthesized
+  branch of an `OR` or `XOR` chain, and the expression around it wraps with it.
+  Such a statement used to stay on one line, even beyond `line_width`.
+
 ## [0.5.0] - 2026-11-06
 
 ### Added
