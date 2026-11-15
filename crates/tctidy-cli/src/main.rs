@@ -135,8 +135,8 @@ fn main() -> ExitCode {
 
 /// Read a `--files-from` list: one path per line from `src` (a file, or stdin when
 /// `src` is `-`). Blank lines and lines starting with `#` are skipped, so a list can
-/// carry comments. Lets a caller hand over thousands of paths without hitting the OS
-/// command-line length limit.
+/// carry comments, and a leading byte order mark is skipped. Lets a caller hand over
+/// thousands of paths without hitting the OS command-line length limit.
 fn read_path_list(src: &str) -> std::io::Result<Vec<String>> {
     let raw = if src == "-" {
         let mut s = String::new();
@@ -146,6 +146,8 @@ fn read_path_list(src: &str) -> std::io::Result<Vec<String>> {
         std::fs::read_to_string(src)?
     };
     Ok(raw
+        .strip_prefix('\u{FEFF}')
+        .unwrap_or(&raw)
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
@@ -218,12 +220,5 @@ fn process_file(
 
 /// A TwinCAT XML object file: by extension, or by content (starts with `<`).
 fn is_twincat(path: &Path, bytes: &[u8]) -> bool {
-    if walk::is_twincat_path(path) {
-        return true;
-    }
-    // Skip a UTF-8 BOM, then look for the opening angle bracket of the XML.
-    let head = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
-    head.iter()
-        .find(|b| !b.is_ascii_whitespace())
-        .is_some_and(|&b| b == b'<')
+    walk::is_twincat_path(path) || stdin::is_twincat_xml(bytes)
 }

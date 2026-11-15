@@ -3,6 +3,11 @@
 //! Auto-detects TwinCAT XML (a leading `<`) and formats it like a file, locating
 //! and reformatting the ST inside while preserving every byte outside it. Otherwise
 //! the input is raw ST, formatted as `section` (declaration or implementation).
+//!
+//! A leading UTF-8 byte order mark is skipped before raw ST, a `--files-from -`
+//! list or a `--stdin-sections` request is read: a .NET Framework caller writes
+//! one before its input when the system code page is UTF-8. TwinCAT XML keeps
+//! its mark, as a file does.
 
 use std::io::{Read, Write};
 use std::process::ExitCode;
@@ -25,15 +30,20 @@ pub fn run(opts: &FormatOptions, section: StSection, check: bool, diff_mode: boo
     if is_twincat_xml(&bytes) {
         run_xml(&bytes, opts, check, diff_mode)
     } else {
-        run_st(bytes, opts, section, check, diff_mode)
+        run_st(skip_bom(&bytes), opts, section, check, diff_mode)
     }
 }
 
+/// `bytes` without one leading UTF-8 byte order mark, if it has one.
+pub fn skip_bom(bytes: &[u8]) -> &[u8] {
+    bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes)
+}
+
 /// A TwinCAT XML document: the first non-whitespace byte (after an optional UTF-8
-/// BOM) is `<`. Mirrors the content check the file path uses in `main`.
-fn is_twincat_xml(bytes: &[u8]) -> bool {
-    let head = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
-    head.iter()
+/// BOM) is `<`. The file path uses the same content check.
+pub fn is_twincat_xml(bytes: &[u8]) -> bool {
+    skip_bom(bytes)
+        .iter()
         .find(|b| !b.is_ascii_whitespace())
         .is_some_and(|&b| b == b'<')
 }
@@ -75,13 +85,13 @@ fn run_xml(bytes: &[u8], opts: &FormatOptions, check: bool, diff_mode: bool) -> 
 
 /// Format raw ST (the original stdin behaviour), as `section`.
 fn run_st(
-    bytes: Vec<u8>,
+    bytes: &[u8],
     opts: &FormatOptions,
     section: StSection,
     check: bool,
     diff_mode: bool,
 ) -> ExitCode {
-    let src = match String::from_utf8(bytes) {
+    let src = match std::str::from_utf8(bytes) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("tctidy: not valid UTF-8: {e}");
@@ -89,7 +99,7 @@ fn run_st(
         }
     };
 
-    let out = match format_st(&src, section, opts) {
+    let out = match format_st(src, section, opts) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("tctidy: {e}");
@@ -100,7 +110,7 @@ fn run_st(
     let changed = out != src;
     if diff_mode {
         if changed {
-            print!("{}", diff::unified("<stdin>", &src, &out));
+            print!("{}", diff::unified("<stdin>", src, &out));
         }
     } else if !check {
         if let Err(e) = std::io::stdout().write_all(out.as_bytes()) {
