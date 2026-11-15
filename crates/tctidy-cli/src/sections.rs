@@ -14,7 +14,8 @@
 //! `.tctidy.toml` that applies to it is used, as with `--stdin-filepath`. A
 //! section that cannot be formatted gets `{"error":"..."}` and does not stop the
 //! others. All of stdin is read before anything is written, so a caller can
-//! write the whole request, then read the response.
+//! write the whole request, then read the response. A leading UTF-8 byte order
+//! mark is skipped.
 
 use std::io::{Read, Write};
 use std::path::Path;
@@ -63,7 +64,7 @@ pub fn run(configs: &mut ConfigResolver) -> ExitCode {
         eprintln!("tctidy: failed to read stdin: {e}");
         return exit::format_failed();
     }
-    let request: Request = match serde_json::from_slice(&bytes) {
+    let request: Request = match serde_json::from_slice(crate::stdin::skip_bom(&bytes)) {
         Ok(request) => request,
         Err(e) => {
             eprintln!("tctidy: --stdin-sections: invalid request: {e}");

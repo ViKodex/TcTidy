@@ -128,6 +128,18 @@ fn an_invalid_config_fails_only_the_sections_it_covers() {
 }
 
 #[test]
+fn a_leading_byte_order_mark_is_skipped() {
+    // A .NET Framework caller writes one before the request when the system
+    // code page is UTF-8.
+    let request = json!({ "sections": [{ "source": "x:=1;" }] });
+    let out = run(&["--stdin-sections"], &format!("\u{FEFF}{request}"));
+
+    assert_eq!(out.status.code(), Some(0));
+    let response: Value = serde_json::from_slice(&out.stdout).expect("a JSON response");
+    assert_eq!(response, json!({ "results": [{ "output": "x := 1;" }] }));
+}
+
+#[test]
 fn an_empty_request_gets_an_empty_response() {
     let (results, code) = format(json!([]));
 

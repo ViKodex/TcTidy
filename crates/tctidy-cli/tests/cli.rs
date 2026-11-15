@@ -559,6 +559,49 @@ const FINAL_NEWLINE_CASES: [(&str, &str, &str); 3] = [
     ),
 ];
 
+/// The UTF-8 byte order mark, as a .NET Framework caller writes it before its
+/// input when the system code page is UTF-8.
+const BOM: &str = "\u{FEFF}";
+
+#[test]
+fn stdin_raw_st_skips_a_leading_byte_order_mark() {
+    let (out, code) = run_stdin(&["-", "--impl"], &format!("{BOM}x:=1;"));
+    assert_eq!((out.as_str(), code), ("x := 1;", 0));
+
+    // The mark is not part of the source: formatted input stays clean.
+    let (_o, code) = run_stdin(&["-", "--impl", "--check"], &format!("{BOM}x := 1;"));
+    assert_eq!(code, 0, "formatted input must be clean under --check");
+    let (out, code) = run_stdin(&["-", "--impl", "--diff"], &format!("{BOM}x := 1;"));
+    assert_eq!((out.as_str(), code), ("", 0), "formatted input has no diff");
+}
+
+#[test]
+fn stdin_twincat_xml_keeps_its_byte_order_mark() {
+    let messy = format!(
+        "{BOM}<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
+         <TcPlcObject Version=\"1.1.0.1\">\n\
+         \x20 <DUT Name=\"X\" Id=\"{{00000000-0000-0000-0000-000000000000}}\">\n\
+         \x20   <Declaration><![CDATA[tYpE X : sTrUcT\na:INT;\neNd_sTrUcT\neNd_tYpE]]></Declaration>\n\
+         \x20 </DUT>\n\
+         </TcPlcObject>\n"
+    );
+    let (out, code) = run_stdin(&["-"], &messy);
+    assert_eq!(code, 0);
+    assert!(out.starts_with(&format!("{BOM}<?xml")), "got:\n{out}");
+    assert!(out.contains("TYPE X : STRUCT"), "got:\n{out}");
+}
+
+#[test]
+fn files_from_stdin_skips_a_leading_byte_order_mark() {
+    let a = write_messy_dut("FromStdinBom");
+    let (_out, code) = run_stdin(&["--files-from", "-"], &format!("{BOM}{}\n", a.display()));
+    assert_eq!(code, 0);
+    assert!(std::fs::read_to_string(&a)
+        .unwrap()
+        .contains("TYPE FromStdinBom : STRUCT"));
+    let _ = std::fs::remove_file(a);
+}
+
 #[test]
 fn stdin_raw_st_keeps_its_final_newline() {
     for (eol, messy, formatted) in FINAL_NEWLINE_CASES {

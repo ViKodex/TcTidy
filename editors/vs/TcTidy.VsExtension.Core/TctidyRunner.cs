@@ -192,8 +192,10 @@ namespace TcTidy.VsExtension.Core
             return (process.ExitCode, stdoutTask.GetAwaiter().GetResult(), stderrTask.GetAwaiter().GetResult());
         }
 
-        // Write stdin as UTF-8 without a BOM (writing to BaseStream avoids the console encoding
-        // adding one), then close it so tctidy sees EOF.
+        // Write stdin as UTF-8 to BaseStream, bypassing the writer's own encoding, then close it so
+        // tctidy sees EOF. On .NET Framework, when the system code page is UTF-8, the writer has
+        // already written a byte order mark when it was created, and its encoding cannot be
+        // chosen: tctidy skips that mark.
         private static void WriteAndClose(StreamWriter input, string stdin)
         {
             var bytes = Utf8NoBom.GetBytes(stdin);
