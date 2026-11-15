@@ -6,8 +6,8 @@
 //!
 //! A leading UTF-8 byte order mark is skipped before raw ST, a `--files-from -`
 //! list or a `--stdin-sections` request is read: a .NET Framework caller writes
-//! one before its input when the system code page is UTF-8. TwinCAT XML keeps
-//! its mark, as a file does.
+//! one before its input when the system code page is UTF-8. Formatted raw ST is
+//! written without the mark. TwinCAT XML keeps its mark, as a file does.
 
 use std::io::{Read, Write};
 use std::process::ExitCode;

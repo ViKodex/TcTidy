@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI: a UTF-8 byte order mark at the start of stdin is now skipped for raw
   ST, a `--files-from` list and a `--stdin-sections` request. The extension
   sends one when the Windows system code page is UTF-8, and every open POU
-  then failed to format.
+  then failed to format. Formatted raw ST is written to stdout without the
+  mark; TwinCAT XML keeps it.
 
 ## [0.5.0] - 2026-11-06
 
